@@ -1,0 +1,13 @@
+<RCC>
+    <qresource prefix="/">
+        <file>icons/SelectCursor.svg</file>
+        <file>icons/MainWindow.svg</file>
+        <file>icons/SelectEllipse.svg</file>
+        <file>icons/SelectLasso.svg</file>
+        <file>icons/SelectRectange.svg</file>
+        <file>icons/ZoomIn.svg</file>
+        <file>icons/ZoomOut.svg</file>
+        <file>icons/ZoomRestore.svg</file>
+        <file>icons/MainWindow.svg.png</file>
+    </qresource>
+</RCC>
