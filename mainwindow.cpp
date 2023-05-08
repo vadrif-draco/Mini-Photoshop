@@ -108,8 +108,12 @@ void MainWindow::run_script(const QString& scriptName)
     QFile temp(QApplication::applicationDirPath().append("/bin/temp"));
     temp.open(QIODevice::WriteOnly);
     QByteArray ba = convertQPixmapToHeaderlessQByteArray(ui->imageLabel->pixmap());
-    temp.write(QString::number(ba.size()).toUtf8());
+//    for (int i = 0; i < ba.size(); i++) printf("%d ", (unsigned char) ba[i]);
+//    fflush(stdout);
     const char separator = 0;
+    temp.write(QString::number(ui->imageLabel->pixmap().height()).toUtf8());
+    temp.write(&separator, 1);
+    temp.write(QString::number(ui->imageLabel->pixmap().width()).toUtf8());
     temp.write(&separator, 1);
     temp.write(ba);
     temp.flush();
@@ -151,12 +155,16 @@ void MainWindow::on_actionExit_triggered()
 
 void MainWindow::on_actionBlur_triggered()
 {
-//    TODO
+    if (mpiRB->isChecked()) run_script(QString("lpf_mpi"));
+    else if (ompRB->isChecked()) run_script(QString("lpf_omp"));
+    else run_script(QString("lpf_seq"));
 }
 
 void MainWindow::on_actionSharpen_triggered()
 {
-//    TODO
+    if (mpiRB->isChecked()) run_script(QString("hpf_mpi"));
+    else if (ompRB->isChecked()) run_script(QString("hpf_omp"));
+    else run_script(QString("hpf_seq"));
 }
 
 void MainWindow::on_actionCluster_triggered()
