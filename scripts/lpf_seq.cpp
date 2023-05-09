@@ -178,18 +178,19 @@ int main(int argc, const char** argv) {
             // i-w-1    i-w    i-w+1
             //  i-1      i      i+1
             // i+w-1    i+w    i+w+1
+            int w = data_width * 3; // data_width is in pixels, not bytes; each pixel has 3 bytes for R G B
             blurred_data[i] = 
-                data[i - data_width - 3] / 16    +    data[i - data_width] / 8    +    data[i - data_width + 3] / 16 +
-                       data[i - 3] / 8           +           data[i] / 4          +           data[i + 3] / 8        +
-                data[i + data_width - 3] / 16    +    data[i + data_width] / 8    +    data[i + data_width + 3] / 16 ;
+                data[i - w - 3] / 16.0    +    data[i - w]     / 8.0    +    data[i - w + 3] / 16.0    +
+                data[i - 3]     / 8.0     +    data[i]         / 4.0    +    data[i + 3]     / 8.0     +
+                data[i + w - 3] / 16.0    +    data[i + w]     / 8.0    +    data[i + w + 3] / 16.0    ;
             blurred_data[i + 1] = 
-                data[i - data_width - 2] / 16    +    data[i - data_width] / 8    +    data[i - data_width + 4] / 16 +
-                       data[i - 2] / 8           +           data[i] / 4          +           data[i + 4] / 8        +
-                data[i + data_width - 2] / 16    +    data[i + data_width] / 8    +    data[i + data_width + 4] / 16 ;
+                data[i - w - 2] / 16.0    +    data[i - w + 1] / 8.0    +    data[i - w + 4] / 16.0    +
+                data[i - 2]     / 8.0     +    data[i + 1]     / 4.0    +    data[i + 4]     / 8.0     +
+                data[i + w - 2] / 16.0    +    data[i + w + 1] / 8.0    +    data[i + w + 4] / 16.0    ;
             blurred_data[i + 2] = 
-                data[i - data_width - 1] / 16    +    data[i - data_width] / 8    +    data[i - data_width + 5] / 16 +
-                       data[i - 1] / 8           +           data[i] / 4          +           data[i + 5] / 8        +
-                data[i + data_width - 1] / 16    +    data[i + data_width] / 8    +    data[i + data_width + 5] / 16 ;
+                data[i - w - 1] / 16.0    +    data[i - w + 2] / 8.0    +    data[i - w + 5] / 16.0    +
+                data[i - 1]     / 8.0     +    data[i + 2]     / 4.0    +    data[i + 5]     / 8.0     +
+                data[i + w - 1] / 16.0    +    data[i + w + 2] / 8.0    +    data[i + w + 5] / 16.0    ;
         }
     }
     auto end = std::chrono::steady_clock::now();
