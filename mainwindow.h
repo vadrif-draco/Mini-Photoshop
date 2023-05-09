@@ -29,7 +29,7 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    MainWindow(QWidget *parent = nullptr);
+    MainWindow(QWidget* parent = nullptr);
     ~MainWindow();
 
 private slots:
@@ -64,15 +64,15 @@ private slots:
     void on_zoomOutBtn_clicked();
 
 private:
-    Ui::MainWindow *ui;
+    Ui::MainWindow* ui;
     double scaleFactor = 1;
     QString header;
     QRadioButton* seqRB;
     QRadioButton* ompRB;
     QRadioButton* mpiRB;
-    bool loadFile(const QString &fileName);
-    bool saveFile(const QString &fileName);
-    void run_script(const QString &scriptName);
+    bool loadFile(const QString& fileName);
+    bool saveFile(const QString& fileName);
+    void run_script(const QString& scriptNamePrefix);
     QByteArray convertQPixmapToHeaderlessQByteArray(QPixmap pixmap);
     QPixmap convertHeaderlessQByteArrayToQPixmap(QByteArray ba);
 };

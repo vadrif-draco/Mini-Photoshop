@@ -2,8 +2,7 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
-MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWindow)
-{
+MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWindow) {
     ui->setupUi(this);
     ui->imageLabel->setScaledContents(true);
     ui->imageScrollArea->setBackgroundRole(QPalette::Midlight);
@@ -19,13 +18,11 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     ui->statusbar->showMessage("Hello and welcome to Mini-Photoshop!");
 }
 
-MainWindow::~MainWindow()
-{
+MainWindow::~MainWindow() {
     delete ui;
 }
 
-static void initializeImageFileDialog(QFileDialog &dialog, QFileDialog::AcceptMode acceptMode)
-{
+static void initializeImageFileDialog(QFileDialog& dialog, QFileDialog::AcceptMode acceptMode) {
     static bool firstPrompt = true;
 
     if (firstPrompt) {
@@ -36,7 +33,7 @@ static void initializeImageFileDialog(QFileDialog &dialog, QFileDialog::AcceptMo
 
     QStringList mimeTypeFilters;
     const QByteArrayList supportedMimeTypes = (acceptMode == QFileDialog::AcceptOpen) ? QImageReader::supportedMimeTypes() : QImageWriter::supportedMimeTypes();
-    for (const QByteArray &mimeTypeName : supportedMimeTypes) mimeTypeFilters.append(mimeTypeName);
+    for (const QByteArray& mimeTypeName : supportedMimeTypes) mimeTypeFilters.append(mimeTypeName);
     mimeTypeFilters.sort();
     dialog.setMimeTypeFilters(mimeTypeFilters);
     dialog.selectMimeTypeFilter("image/jpeg");
@@ -44,8 +41,7 @@ static void initializeImageFileDialog(QFileDialog &dialog, QFileDialog::AcceptMo
     if (acceptMode == QFileDialog::AcceptSave) dialog.setDefaultSuffix("jpg");
 }
 
-bool MainWindow::loadFile(const QString &fileName)
-{
+bool MainWindow::loadFile(const QString& fileName) {
     QImageReader reader(fileName);
     reader.setAutoTransform(true);
     QImage image = reader.read();
@@ -64,8 +60,7 @@ bool MainWindow::loadFile(const QString &fileName)
     return true;
 }
 
-bool MainWindow::saveFile(const QString &fileName)
-{
+bool MainWindow::saveFile(const QString& fileName) {
     QImageWriter writer(fileName);
 
     if (!writer.write(ui->imageLabel->pixmap().toImage())) {
@@ -79,8 +74,7 @@ bool MainWindow::saveFile(const QString &fileName)
     return true;
 }
 
-QByteArray MainWindow::convertQPixmapToHeaderlessQByteArray(QPixmap pixmap)
-{
+QByteArray MainWindow::convertQPixmapToHeaderlessQByteArray(QPixmap pixmap) {
     QByteArray ba;
     QBuffer buff(&ba);
     buff.open(QIODeviceBase::WriteOnly);
@@ -96,15 +90,13 @@ QByteArray MainWindow::convertQPixmapToHeaderlessQByteArray(QPixmap pixmap)
     return ba.mid(index);
 }
 
-QPixmap MainWindow::convertHeaderlessQByteArrayToQPixmap(QByteArray ba)
-{
+QPixmap MainWindow::convertHeaderlessQByteArrayToQPixmap(QByteArray ba) {
     QPixmap pixmap;
     pixmap.loadFromData(ba.prepend(this->header.toUtf8()), "PPM");
     return pixmap.copy();
 }
 
-void MainWindow::run_script(const QString& scriptName)
-{
+void MainWindow::run_script(const QString& scriptNamePrefix) {
     QFile temp(QApplication::applicationDirPath().append("/bin/temp"));
     temp.open(QIODevice::WriteOnly);
     QByteArray ba = convertQPixmapToHeaderlessQByteArray(ui->imageLabel->pixmap());
@@ -121,7 +113,9 @@ void MainWindow::run_script(const QString& scriptName)
 
     QProcess* process = new QProcess(this);
     process->setWorkingDirectory(QApplication::applicationDirPath());
-    process->start(QString("bin/%1.exe").arg(scriptName));
+    if (seqRB->isChecked()) process->start(QString("bin/%1_%2.exe").arg(scriptNamePrefix, "seq"));
+    else if (ompRB->isChecked()) process->start(QString("bin/%1_%2.exe").arg(scriptNamePrefix, "omp"));
+    else process->start("mpiexec", QStringList() << "-n 16" << QString("bin/%1_%2.exe").arg(scriptNamePrefix, "mpi"));
     process->waitForFinished();
     printf(process->readAllStandardError());
     fflush(stdout);
@@ -134,93 +128,72 @@ void MainWindow::run_script(const QString& scriptName)
     temp.remove();
 }
 
-void MainWindow::on_actionOpen_triggered()
-{
+void MainWindow::on_actionOpen_triggered() {
     QFileDialog dialog(this, tr("Open File"));
     initializeImageFileDialog(dialog, QFileDialog::AcceptOpen);
     while (dialog.exec() == QDialog::Accepted && !loadFile(dialog.selectedFiles().constFirst())) {}
 }
 
-void MainWindow::on_actionSave_triggered()
-{
+void MainWindow::on_actionSave_triggered() {
     QFileDialog dialog(this, tr("Save File"));
     initializeImageFileDialog(dialog, QFileDialog::AcceptSave);
     while (dialog.exec() == QDialog::Accepted && !saveFile(dialog.selectedFiles().constFirst())) {}
 }
 
-void MainWindow::on_actionExit_triggered()
-{
+void MainWindow::on_actionExit_triggered() {
     QCoreApplication::quit();
 }
 
-void MainWindow::on_actionBlur_triggered()
-{
-    if (mpiRB->isChecked()) run_script(QString("lpf_mpi"));
-    else if (ompRB->isChecked()) run_script(QString("lpf_omp"));
-    else run_script(QString("lpf_seq"));
+void MainWindow::on_actionBlur_triggered() {
+    run_script(QString("lpf"));
 }
 
-void MainWindow::on_actionSharpen_triggered()
-{
-    if (mpiRB->isChecked()) run_script(QString("hpf_mpi"));
-    else if (ompRB->isChecked()) run_script(QString("hpf_omp"));
-    else run_script(QString("hpf_seq"));
+void MainWindow::on_actionSharpen_triggered() {
+    run_script(QString("hpf"));
 }
 
-void MainWindow::on_actionCluster_triggered()
-{
+void MainWindow::on_actionCluster_triggered() {
+    run_script(QString("cluster"));
+}
+
+void MainWindow::on_actionEqualize_Histogram_triggered() {
+    run_script(QString("equalize"));
+}
+
+void MainWindow::on_actionInvert_triggered() {
+    run_script(QString("invert"));
+}
+
+void MainWindow::on_selNoneBtn_clicked() {
 //    TODO
 }
 
-void MainWindow::on_actionEqualize_Histogram_triggered()
-{
-//    TODO
-}
-
-void MainWindow::on_actionInvert_triggered()
-{
-    if (mpiRB->isChecked()) run_script(QString("invert_mpi"));
-    else if (ompRB->isChecked()) run_script(QString("invert_omp"));
-    else run_script(QString("invert_seq"));
-}
-
-void MainWindow::on_selNoneBtn_clicked()
-{
-//    TODO
-}
-
-void MainWindow::on_selRectBtn_clicked()
-{
+void MainWindow::on_selRectBtn_clicked() {
 //    TODO
 //    ui->imageLabel->pixmap().copy(); can take a rectangle argument!
 }
 
-void MainWindow::on_selEllipseBtn_clicked()
-{
+void MainWindow::on_selEllipseBtn_clicked() {
 //    TODO
 }
 
-void MainWindow::on_selLassoBtn_clicked()
-{
+void MainWindow::on_selLassoBtn_clicked() {
 //    TODO
 }
 
-void MainWindow::on_zoomInBtn_clicked()
-{
+void MainWindow::on_zoomInBtn_clicked() {
     this->scaleFactor *= 1.25;
     ui->imageLabel->setFixedSize(this->scaleFactor * ui->imageLabel->pixmap(Qt::ReturnByValue).size());
     ui->statusbar->showMessage(QString("Enlarged to: %1x%2").arg(ui->imageLabel->width()).arg(ui->imageLabel->height()));
 }
 
-void MainWindow::on_zoomFitBtn_clicked()
-{
+void MainWindow::on_zoomFitBtn_clicked() {
     this->scaleFactor = 1.0f;
     ui->imageLabel->setFixedSize(this->scaleFactor * ui->imageLabel->pixmap(Qt::ReturnByValue).size());
     ui->statusbar->showMessage(QString("Restored to: %1x%2").arg(ui->imageLabel->width()).arg(ui->imageLabel->height()));
 }
 
-void MainWindow::on_zoomOutBtn_clicked()
-{
+void MainWindow::on_zoomOutBtn_clicked() {
     this->scaleFactor *= 0.8f;
     ui->imageLabel->setFixedSize(this->scaleFactor * ui->imageLabel->pixmap(Qt::ReturnByValue).size());
     ui->statusbar->showMessage(QString("Shrunk to: %1x%2").arg(ui->imageLabel->width()).arg(ui->imageLabel->height()));
