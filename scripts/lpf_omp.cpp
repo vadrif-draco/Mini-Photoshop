@@ -11,9 +11,9 @@ int main(int argc, const char** argv) {
     std::string data_height_str, data_width_str;
     std::getline(process_input, data_height_str, '\0');
     std::getline(process_input, data_width_str, '\0');
-    unsigned long long data_height = std::stoull(data_height_str);
-    unsigned long long data_width = std::stoull(data_width_str);
-    unsigned long long data_size = data_height * data_width * 3; // 3 for RGB channels
+    unsigned long long data_height = std::stoull(data_height_str); // in pixels
+    unsigned long long data_width = std::stoull(data_width_str); // in pixels
+    unsigned long long data_size = data_height * data_width * 3; // 3 bytes per pixel, representing RGB channels
     std::cerr << data_size << " bytes (" << data_height << " x " << data_width << " x 3)" << std::endl;
 
     // Get data (pixels) to be processed
