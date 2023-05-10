@@ -47,7 +47,13 @@ int main(int argc, const char** argv) {
     long long topedge[] = { 3, w - 3 };
     long long bottedge[] = { s - w + 3, s - 3 };
     long long leftedge[] = { w, s - w };
-    long long rightedge[] = { w - 3, s - w - 3 + 1 };
+    long long rightedge[] = { w + w - 3, s - w - 3 };
+
+    // For the aid of visualization...
+    // 012 345 678 901 (w = 12, s = 36)
+    // xxx xxx xxx xxx
+    // xxx xxx xxx xxx
+    // xxx xxx xxx xxx
 
     // Preprocessing: Iterators
     long long i, k;
@@ -58,7 +64,13 @@ int main(int argc, const char** argv) {
     // 1/16    1/8    1/16
     // float mask[9] = { 16.0f, 8.0f, 16.0f, 8.0f, 4.0f, 8.0f, 16.0f, 8.0f, 16.0f }; // Gaussian smoothing
     // float mask[9] = { 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f }; // Normal smoothing
-    float mask[9] = { 0.0625f, 0.125f, 0.0625f, 0.125f, 0.25f, 0.125f, 0.0625f, 0.125f, 0.0625f }; // Normal smoothing
+    float mask[9] = { 
+        
+        0.0625f, 0.1250f, 0.0625f,
+        0.1250f, 0.2500f, 0.1250f,
+        0.0625f, 0.1250f, 0.0625f,
+        
+    }; // Gausianisni smoothing
 
     // Process it
     char* blurred_data = (char*) malloc(data_size);
