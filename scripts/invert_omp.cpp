@@ -17,12 +17,12 @@ int main(int argc, const char** argv) {
     std::cerr << data_size << " bytes (" << data_height << " x " << data_width << " x 3)" << std::endl;
 
     // Get data (pixels) to be processed
-    char* data = (char*) malloc(data_size);
-    process_input.read(data, data_size);
+    unsigned char* data = (unsigned char*) malloc(data_size);
+    process_input.read((char *)&data, data_size);
     process_input.close();
 
     // Process it
-    char* inverted_data = (char*) malloc(data_size);
+    unsigned char* inverted_data = (unsigned char*) malloc(data_size);
     auto start = std::chrono::steady_clock::now();
     #pragma omp parallel for
     for (unsigned long long i = 0; i < data_size; i++) inverted_data[i] = 0xff - data[i];
@@ -31,7 +31,7 @@ int main(int argc, const char** argv) {
 
     // Write it and terminate
     std::ofstream process_output("bin/temp", std::ios::trunc | std::ios::binary);
-    process_output.write(inverted_data, data_size);
+    process_output.write((char *)&inverted_data[0], data_size);
     process_output.write(std::to_string(t).c_str(), std::to_string(t).length());
     process_output.flush();
     process_output.close();
