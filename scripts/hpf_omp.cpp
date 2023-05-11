@@ -1,3 +1,4 @@
+#include <omp.h>
 #include <chrono>
 #include <math.h>
 #include <fstream>
@@ -179,6 +180,7 @@ int main(int argc, const char** argv) {
     apply_maskv(rightedgeoffsets, mask, rightedge, w, blurred_data, data);
     // Processing: Body
     long long iteration_range[2];
+    #pragma omp parallel for private(iteration_range)
     for (long long i = w + 3; i < s - w; i += w) {
 
         iteration_range[0] = i;
