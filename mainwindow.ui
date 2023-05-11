@@ -68,8 +68,8 @@
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>879</width>
-         <height>630</height>
+         <width>876</width>
+         <height>616</height>
         </rect>
        </property>
        <layout class="QGridLayout" name="gridLayout_2">
@@ -128,7 +128,7 @@
      <x>0</x>
      <y>0</y>
      <width>960</width>
-     <height>21</height>
+     <height>25</height>
     </rect>
    </property>
   </widget>
@@ -532,7 +532,7 @@
   </action>
   <action name="actionEqualize_Histogram">
    <property name="enabled">
-    <bool>false</bool>
+    <bool>true</bool>
    </property>
    <property name="text">
     <string>Equalize Histogram</string>
