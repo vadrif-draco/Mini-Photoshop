@@ -6,7 +6,7 @@ void MyQLabel::mouseMoveEvent(QMouseEvent* event) {
     unsigned int y = float(event->pos().y()) / mainWindow->scaleFactor;
     QColor colors = mainWindow->getPixelAt(x, y);
     mainWindow->pixelLabel->setText(
-        QString("(%1, %2): %3 %4 %5")
+        QString("(%1, %2): %3 %4 %5 ")
             .arg(x)
             .arg(y)
             .arg(colors.red())

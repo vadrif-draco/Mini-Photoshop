@@ -71,8 +71,11 @@ bool MainWindow::loadFile(const QString& fileName) {
 
 bool MainWindow::saveFile(const QString& fileName) {
     QImageWriter writer(fileName);
-
-    if (!writer.write(ui->imageLabel->pixmap().toImage())) {
+    writer.setQuality(100);
+    writer.setCompression(0);
+    writer.setOptimizedWrite(true);
+    writer.setProgressiveScanWrite(true);
+    if (!writer.write(image)) {
         QMessageBox::information(
             this,
             QGuiApplication::applicationDisplayName(),
@@ -196,9 +199,14 @@ void MainWindow::scaleImagePixmap() {
 }
 
 void MainWindow::on_zoomInBtn_clicked() {
-    scaleFactor *= 1.25;
-    scaleImagePixmap();
-    ui->statusbar->showMessage(QString("Enlarged to: %1x%2").arg(ui->imageLabel->width()).arg(ui->imageLabel->height()));
+    // Arbitrarily setting the zoom-in limit to 1024 * 1024 * 255
+    if ((long long) ui->imageLabel->width() * (long long) ui->imageLabel->height() > (long long) 267386880) {
+        ui->statusbar->showMessage("You've zoomed in too far! Please be kinder to your memory... :(");
+    } else {
+        scaleFactor *= 1.25;
+        scaleImagePixmap();
+        ui->statusbar->showMessage(QString("Enlarged to: %1x%2").arg(ui->imageLabel->width()).arg(ui->imageLabel->height()));
+    }
 }
 
 void MainWindow::on_zoomFitBtn_clicked() {
@@ -208,7 +216,12 @@ void MainWindow::on_zoomFitBtn_clicked() {
 }
 
 void MainWindow::on_zoomOutBtn_clicked() {
-    scaleFactor *= 0.8f;
-    scaleImagePixmap();
-    ui->statusbar->showMessage(QString("Shrunk to: %1x%2").arg(ui->imageLabel->width()).arg(ui->imageLabel->height()));
+    // Arbitrarily setting the zoom-out limit to 255
+    if ((long long) ui->imageLabel->width() * (long long) ui->imageLabel->height() < 255) {
+        ui->statusbar->showMessage("That's enough zooming out, the pic has been obliterated...");
+    } else {
+        scaleFactor *= 0.8f;
+        scaleImagePixmap();
+        ui->statusbar->showMessage(QString("Shrunk to: %1x%2").arg(ui->imageLabel->width()).arg(ui->imageLabel->height()));
+    }
 }
