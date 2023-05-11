@@ -1,7 +1,32 @@
 #include <chrono>
+#include <math.h>
 #include <fstream>
 #include <iostream>
 #include <string.h>
+
+void apply_mask(long long(&offsets)[9], float(&mask)[9], long long(&range)[2], unsigned char* (&processed), unsigned char* (&original)) {
+
+    for (long long i = range[0]; i < range[1]; ++i) {
+        processed[i] = (float(
+            original[i + offsets[0]] * mask[0] + original[i + offsets[1]] * mask[1] + original[i + offsets[2]] * mask[2] +
+            original[i + offsets[3]] * mask[3] + original[i + offsets[4]] * mask[4] + original[i + offsets[5]] * mask[5] +
+            original[i + offsets[6]] * mask[6] + original[i + offsets[7]] * mask[7] + original[i + offsets[8]] * mask[8]));
+    }
+
+}
+
+void apply_maskv(long long(&offsets)[9], float(&mask)[9], long long(&range)[2], long long(&rowsize), unsigned char* (&processed), unsigned char* (&original)) {
+
+    for (long long i = range[0]; i < range[1]; i += rowsize) {
+        for (long long k = i; k < i + 3; k++) {
+            processed[k] = (float(
+                original[k + offsets[0]] * mask[0] + original[k + offsets[1]] * mask[1] + original[k + offsets[2]] * mask[2] +
+                original[k + offsets[3]] * mask[3] + original[k + offsets[4]] * mask[4] + original[k + offsets[5]] * mask[5] +
+                original[k + offsets[6]] * mask[6] + original[k + offsets[7]] * mask[7] + original[k + offsets[8]] * mask[8]));
+        }
+    }
+
+}
 
 int main(int argc, const char** argv) {
 
@@ -10,195 +35,163 @@ int main(int argc, const char** argv) {
     std::string data_height_str, data_width_str;
     std::getline(process_input, data_height_str, '\0');
     std::getline(process_input, data_width_str, '\0');
-    unsigned long long data_height = std::stoull(data_height_str);
-    unsigned long long data_width = std::stoull(data_width_str);
-    unsigned long long data_size = data_height * data_width * 3; // 3 for RGB channels
+    long long data_height = std::stoll(data_height_str); // in pixels
+    long long data_width = std::stoll(data_width_str); // in pixels
+    long long data_size = data_height * data_width * 3; // 3 bytes per pixel, representing RGB channels
     std::cerr << data_size << " bytes (" << data_height << " x " << data_width << " x 3)" << std::endl;
 
     // Get data (pixels) to be processed
-    char* data = (char*) malloc(data_size);
-    process_input.read(data, data_size);
+    unsigned char* data = (unsigned char*) malloc(data_size);
+    process_input.read((char *)&data[0], data_size);
     process_input.close();
 
+    // Preprocessing: Filter mask(s)
+    // float mask[9] = {
+
+    //     0.0625f, 0.1250f, 0.0625f,
+    //     0.1250f, 0.2500f, 0.1250f,
+    //     0.0625f, 0.1250f, 0.0625f,
+
+    // }; // Gaussian smoothing
+    float mask[9] = {
+
+        1 / 9.0f, 1 / 9.0f, 1 / 9.0f,
+        1 / 9.0f, 1 / 9.0f, 1 / 9.0f,
+        1 / 9.0f, 1 / 9.0f, 1 / 9.0f,
+
+    }; // Normal smoothing
+
+    // Preprocessing: Convenience naming
+    long long w = data_width * 3; // data width in bytes
+    long long& h = data_height; // data height in pixels
+    long long& s = data_size; // data size in bytes
+
+    // Preprocessing: Corner pixels start/end bytes (inclusive, exclusive)
+    long long topleft[] = { 0, 3 };
+    long long topright[] = { w - 3, w };
+    long long bottleft[] = { s - w, s - w + 3 };
+    long long bottright[] = { s - 3, s };
+
+    // Preprocessing: Edge pixels start/end bytes (inclusive, exclusive)
+    long long topedge[] = { 3, w - 3 };
+    long long bottedge[] = { s - w + 3, s - 3 };
+    long long leftedge[] = { w, s - w }; // Dealt with in pixel triples rather than bytes
+    long long rightedge[] = { w + w - 3, s - 3 }; // Dealt with in pixel triples rather than bytes
+
+    // Preprocessing: For the aid of visualization...
+    //    012 345 678 901
+    // 00 xxx xxx xxx xxx 11
+    // 12 xxx xxx xxx xxx 23
+    // 24 xxx xxx xxx xxx 35
+    // 36 xxx xxx xxx xxx 47
+    // 48 xxx xxx xxx xxx 59 (s = 60)
+
+    // Preprocessing: Regarding offsets:
+    // "- w" takes us to the pixel (and channel) directly above
+    // "+ 3" takes us to the pixel (and channel) to the right
+    // "+ w" takes us to the pixel (and channel) directly below
+    // "- 3" takes us to the pixel (and channel) to the left
+
+    long long topleftoffsets[9] = {
+
+        0,      0,      0,
+        0,      0,      3,
+        0,      w,      w + 3
+
+    };
+
+    long long toprightoffsets[9] = {
+
+        0,      0,      0,
+        -3,     0,      0,
+        w - 3,  w,      0
+
+    };
+
+    long long bottleftoffsets[9] = {
+
+        0,      -w,     -w + 3,
+        0,      0,      3,
+        0,      0,      0
+
+    };
+
+    long long bottrightoffsets[9] = {
+
+        -w - 3, -w,     0,
+        -3,     0,      0,
+        0,      0,      0
+
+    };
+
+    long long topedgeoffsets[9] = {
+
+        0,      0,      0,
+        -3,     0,      3,
+        w - 3,  w,      w + 3
+
+    };
+
+    long long bottedgeoffsets[9] = {
+
+        -w - 3, -w,     -w + 3,
+        -3,     0,      3,
+        0,      0,      0,
+
+    };
+
+    long long leftedgeoffsets[9] = {
+
+        0,      -w,     -w + 3,
+        0,      0,      3,
+        0,      w,      w + 3,
+
+    };
+
+    long long rightedgeoffsets[9] = {
+
+        -w - 3, -w,     0,
+        -3,     0,      0,
+        w - 3,  w,      0,
+
+    };
+
+    long long alloffsets[9] = {
+
+        -w - 3, -w,     -w + 3,
+        -3,     0,      3,
+        w - 3,  w,      w + 3,
+
+    };
+
     // Process it
-    char* blurred_data = (char*) malloc(data_size);
+    unsigned char* blurred_data = (unsigned char*) malloc(data_size);
     auto start = std::chrono::steady_clock::now();
-    for (unsigned long long i = 0; i < data_size; i += 3) {
-        // Filter:
-        // 1/16    1/8    1/16
-        // 1/8     1/4    1/8
-        // 1/16    1/8    1/16
-        
-        if (i > 0 && i < ((data_width - 1) * 3)) {
-        //     // Top edge:
-        //     //   0       0       0  
-        //     //  i-1      i      i+1
-        //     // i+w-1    i+w    i+w+1
-        //     blurred_data[i] = 
-        //                      0                       +                 0                  +                 0                    +
-        //                1 / 8 * data[i - 3]           +           1 / 4 * data[i]          +           1 / 8 * data[i + 3]        +
-        //         1 / 16 * data[i + data_width - 3]    +    1 / 8 * data[i + data_width]    +    1 / 16 * data[i + data_width + 3] ;
-        //     blurred_data[i + 1] = 
-        //                      0                       +                 0                  +                 0                    +
-        //                1 / 8 * data[i - 2]           +           1 / 4 * data[i]          +           1 / 8 * data[i + 4]        +
-        //         1 / 16 * data[i + data_width - 2]    +    1 / 8 * data[i + data_width]    +    1 / 16 * data[i + data_width + 4] ;
-        //     blurred_data[i + 2] = 
-        //                      0                       +                 0                  +                 0                    +
-        //                1 / 8 * data[i - 1]           +           1 / 4 * data[i]          +           1 / 8 * data[i + 5]        +
-        //         1 / 16 * data[i + data_width - 1]    +    1 / 8 * data[i + data_width]    +    1 / 16 * data[i + data_width + 5] ;
-        }
-        else if (i > ((data_height - 1) * (data_width - 1) * 3) && i < ((data_height * data_width - 1) * 3)) {
-        //     // Bottom edge:
-        //     // i-w-1    i-w    i-w+1
-        //     //  i-1      i      i+1
-        //     //   0       0       0  
-        //     blurred_data[i] = 
-        //         1 / 16 * data[i - data_width - 3]    +    1 / 8 * data[i - data_width]    +    1 / 16 * data[i - data_width + 3] +
-        //                1 / 8 * data[i - 3]           +           1 / 4 * data[i]          +           1 / 8 * data[i + 3]        +
-        //                      0                       +                 0                  +                 0                    ;
-        //     blurred_data[i + 1] = 
-        //         1 / 16 * data[i - data_width - 2]    +    1 / 8 * data[i - data_width]    +    1 / 16 * data[i - data_width + 4] +
-        //                1 / 8 * data[i - 2]           +           1 / 4 * data[i]          +           1 / 8 * data[i + 4]        +
-        //                      0                       +                 0                  +                 0                    ;
-        //     blurred_data[i + 2] = 
-        //         1 / 16 * data[i - data_width - 1]    +    1 / 8 * data[i - data_width]    +    1 / 16 * data[i - data_width + 5] +
-        //                1 / 8 * data[i - 1]           +           1 / 4 * data[i]          +           1 / 8 * data[i + 5]        +
-        //                      0                       +                 0                  +                 0                    ;
-        }
-        else if (i > 0 && i < ((data_height - 1) * (data_width - 1) * 3) && i%(data_width * 3) == 1) {
-        //     // Left edge:
-        //     //   0      i-w    i-w+1
-        //     //   0       i      i+1
-        //     //   0      i+w    i+w+1
-        //     blurred_data[i] = 
-        //         1 / 16 * data[i - data_width - 3]    +    1 / 8 * data[i - data_width]    +                 0                    +
-        //                1 / 8 * data[i - 3]           +           1 / 4 * data[i]          +                 0                    +
-        //         1 / 16 * data[i + data_width - 3]    +    1 / 8 * data[i + data_width]    +                 0                    ;
-        //     blurred_data[i + 1] = 
-        //         1 / 16 * data[i - data_width - 2]    +    1 / 8 * data[i - data_width]    +                 0                    +
-        //                1 / 8 * data[i - 2]           +           1 / 4 * data[i]          +                 0                    +
-        //         1 / 16 * data[i + data_width - 2]    +    1 / 8 * data[i + data_width]    +                 0                    ;
-        //     blurred_data[i + 2] = 
-        //         1 / 16 * data[i - data_width - 1]    +    1 / 8 * data[i - data_width]    +                 0                    +
-        //                1 / 8 * data[i - 1]           +           1 / 4 * data[i]          +                 0                    +
-        //         1 / 16 * data[i + data_width - 1]    +    1 / 8 * data[i + data_width]    +                 0                    ;
-        }
-        else if (i > ((data_width - 1) * 3) && i < ((data_height * data_width - 1) * 3) && i%(data_width * 3) == 0) {
-        //     // Right edge:
-        //     // i-w-1    i-w      0  
-        //     //  i-1      i       0 
-        //     // i+w-1    i+w      0  
-        //     blurred_data[i] = 
-        //                      0                       +    1 / 8 * data[i - data_width]    +    1 / 16 * data[i - data_width + 3] +
-        //                      0                       +           1 / 4 * data[i]          +           1 / 8 * data[i + 3]        +
-        //                      0                       +    1 / 8 * data[i + data_width]    +    1 / 16 * data[i + data_width + 3] ;
-        //     blurred_data[i + 1] = 
-        //                      0                       +    1 / 8 * data[i - data_width]    +    1 / 16 * data[i - data_width + 4] +
-        //                      0                       +           1 / 4 * data[i]          +           1 / 8 * data[i + 4]        +
-        //                      0                       +    1 / 8 * data[i + data_width]    +    1 / 16 * data[i + data_width + 4] ;
-        //     blurred_data[i + 2] = 
-        //                      0                       +    1 / 8 * data[i - data_width]    +    1 / 16 * data[i - data_width + 5] +
-        //                      0                       +           1 / 4 * data[i]          +           1 / 8 * data[i + 5]        +
-        //                      0                       +    1 / 8 * data[i + data_width]    +    1 / 16 * data[i + data_width + 5] ;
-        }
-        else if (i == 0) {
-        //     // Top left:
-        //     //   0       0       0
-        //     //   0       i      i+1
-        //     //   0      i+w    i+w+1
-        //     blurred_data[i] = 
-        //                      0                       +                 0                  +                 0                    +
-        //                      0                       +           1 / 4 * data[i]          +           1 / 8 * data[i + 3]        +
-        //                      0                       +    1 / 8 * data[i + data_width]    +    1 / 16 * data[i + data_width + 3] ;
-        //     blurred_data[i + 1] = 
-        //                      0                       +                 0                  +                 0                    +
-        //                      0                       +           1 / 4 * data[i]          +           1 / 8 * data[i + 4]        +
-        //                      0                       +    1 / 8 * data[i + data_width]    +    1 / 16 * data[i + data_width + 4] ;
-        //     blurred_data[i + 2] = 
-        //                      0                       +                 0                  +                 0                    +
-        //                      0                       +           1 / 4 * data[i]          +           1 / 8 * data[i + 5]        +
-        //                      0                       +    1 / 8 * data[i + data_width]    +    1 / 16 * data[i + data_width + 5] ;
-        }
-        else if (i == ((data_width - 1) * 3)) {
-        //     // Top right:
-        //     //   0       0       0
-        //     //  i-1      i       0
-        //     // i+w-1    i+w      0
-        //     blurred_data[i] = 
-        //                      0                       +                 0                  +                 0                    +
-        //                 1 / 8 * data[i - 3]          +           1 / 4 * data[i]          +                 0                    +
-        //         1 / 16 * data[i + data_width - 3]    +    1 / 8 * data[i + data_width]    +                 0                    ;
-        //     blurred_data[i + 1] = 
-        //                      0                       +                 0                  +                 0                    +
-        //                 1 / 8 * data[i - 2]          +           1 / 4 * data[i]          +                 0                    +
-        //         1 / 16 * data[i + data_width - 2]    +    1 / 8 * data[i + data_width]    +                 0                    ;
-        //     blurred_data[i + 2] = 
-        //                      0                       +                 0                  +                 0                    +
-        //                 1 / 8 * data[i - 1]          +           1 / 4 * data[i]          +                 0                    +
-        //         1 / 16 * data[i + data_width - 1]    +    1 / 8 * data[i + data_width]    +                 0                    ;
-        }
-        else if (i == ((data_height - 1) * (data_width - 1) * 3)) {
-        //     // Bottom left:
-        //     //   0      i-w    i-w+1
-        //     //   0       i      i+1
-        //     //   0       0       0
-        //     blurred_data[i] = 
-        //                      0                       +    1 / 8 * data[i - data_width]    +    1 / 16 * data[i - data_width + 3] +
-        //                      0                       +           1 / 4 * data[i]          +           1 / 8 * data[i + 3]        +
-        //                      0                       +                 0                  +                 0                    ;
-        //     blurred_data[i + 1] = 
-        //                      0                       +    1 / 8 * data[i - data_width]    +    1 / 16 * data[i - data_width + 4] +
-        //                      0                       +           1 / 4 * data[i]          +           1 / 8 * data[i + 4]        +
-        //                      0                       +                 0                  +                 0                    ;
-        //     blurred_data[i + 2] = 
-        //                      0                       +    1 / 8 * data[i - data_width]    +    1 / 16 * data[i - data_width + 5] +
-        //                      0                       +           1 / 4 * data[i]          +           1 / 8 * data[i + 5]        +
-        //                      0                       +                 0                  +                 0                    ;
-        }
-        else if (i == ((data_height * data_width - 1) * 3)) {
-        //     // Bottom right:
-        //     // i-w-1    i-w      0
-        //     //  i-1      i       0
-        //     //   0       0       0
-        //     blurred_data[i] = 
-        //         1 / 16 * data[i - data_width - 3]    +    1 / 8 * data[i - data_width]    +                 0                    +
-        //                1 / 8 * data[i - 3]           +           1 / 4 * data[i]          +                 0                    +
-        //                      0                       +                 0                  +                 0                    ;
-        //     blurred_data[i + 1] = 
-        //         1 / 16 * data[i - data_width - 2]    +    1 / 8 * data[i - data_width]    +                 0                    +
-        //                1 / 8 * data[i - 2]           +           1 / 4 * data[i]          +                 0                    +
-        //                      0                       +                 0                  +                 0                    ;
-        //     blurred_data[i + 2] = 
-        //         1 / 16 * data[i - data_width - 1]    +    1 / 8 * data[i - data_width]    +                 0                    +
-        //                1 / 8 * data[i - 1]           +           1 / 4 * data[i]          +                 0                    +
-        //                      0                       +                 0                  +                 0                    ;
-        }
-        else {
-            // Normal case:
-            // i-w-1    i-w    i-w+1
-            //  i-1      i      i+1
-            // i+w-1    i+w    i+w+1
-            int w = data_width * 3; // data_width is in pixels, not bytes; each pixel has 3 bytes for R G B
-            blurred_data[i] = 
-                data[i - w - 3] / 16.0    +    data[i - w]     / 8.0    +    data[i - w + 3] / 16.0    +
-                data[i - 3]     / 8.0     +    data[i]         / 4.0    +    data[i + 3]     / 8.0     +
-                data[i + w - 3] / 16.0    +    data[i + w]     / 8.0    +    data[i + w + 3] / 16.0    ;
-            blurred_data[i + 1] = 
-                data[i - w - 2] / 16.0    +    data[i - w + 1] / 8.0    +    data[i - w + 4] / 16.0    +
-                data[i - 2]     / 8.0     +    data[i + 1]     / 4.0    +    data[i + 4]     / 8.0     +
-                data[i + w - 2] / 16.0    +    data[i + w + 1] / 8.0    +    data[i + w + 4] / 16.0    ;
-            blurred_data[i + 2] = 
-                data[i - w - 1] / 16.0    +    data[i - w + 2] / 8.0    +    data[i - w + 5] / 16.0    +
-                data[i - 1]     / 8.0     +    data[i + 2]     / 4.0    +    data[i + 5]     / 8.0     +
-                data[i + w - 1] / 16.0    +    data[i + w + 2] / 8.0    +    data[i + w + 5] / 16.0    ;
-        }
+    // Processing: Corners
+    apply_mask(topleftoffsets, mask, topleft, blurred_data, data);
+    apply_mask(toprightoffsets, mask, topright, blurred_data, data);
+    apply_mask(bottleftoffsets, mask, bottleft, blurred_data, data);
+    apply_mask(bottrightoffsets, mask, bottright, blurred_data, data);
+    // Processing: Edges
+    apply_mask(topedgeoffsets, mask, topedge, blurred_data, data);
+    apply_mask(bottedgeoffsets, mask, bottedge, blurred_data, data);
+    apply_maskv(leftedgeoffsets, mask, leftedge, w, blurred_data, data);
+    apply_maskv(rightedgeoffsets, mask, rightedge, w, blurred_data, data);
+    // Processing: Body
+    long long iteration_range[2];
+    for (long long i = w + 3; i < s - w; i += w) {
+
+        iteration_range[0] = i;
+        iteration_range[1] = i + w - 3 - 3;
+        apply_mask(alloffsets, mask, iteration_range, blurred_data, data);
+
     }
     auto end = std::chrono::steady_clock::now();
-    unsigned long long t = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    long long t = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 
     // Write it and terminate
     std::ofstream process_output("bin/temp", std::ios::trunc | std::ios::binary);
-    process_output.write(blurred_data, data_size);
+    process_output.write((char *)&blurred_data[0], data_size);
     process_output.write(std::to_string(t).c_str(), std::to_string(t).length());
     process_output.flush();
     process_output.close();
