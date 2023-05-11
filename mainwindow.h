@@ -4,12 +4,15 @@
 
 #include <QBuffer>
 #include <QByteArray>
+#include <QColor>
 #include <QDir>
 #include <QFileDialog>
 #include <QGraphicsScene>
 #include <QGraphicsView>
+#include <QImage>
 #include <QImageReader>
 #include <QImageWriter>
+#include <QLabel>
 #include <QMainWindow>
 #include <QMessageBox>
 #include <QPixmap>
@@ -31,6 +34,9 @@ class MainWindow : public QMainWindow
 public:
     MainWindow(QWidget* parent = nullptr);
     ~MainWindow();
+    double scaleFactor = 1.0;
+    QLabel* pixelLabel;
+    QColor getPixelAt(unsigned int x, unsigned int y);
 
 private slots:
     void on_actionOpen_triggered();
@@ -65,16 +71,16 @@ private slots:
 
 private:
     Ui::MainWindow* ui;
-    double scaleFactor = 1;
-    QString header;
+    QImage image;
+    QString imageHeader;
     QRadioButton* seqRB;
     QRadioButton* ompRB;
     QRadioButton* mpiRB;
     bool loadFile(const QString& fileName);
     bool saveFile(const QString& fileName);
-    void run_script(const QString& scriptNamePrefix);
-    QByteArray convertQPixmapToHeaderlessQByteArray(QPixmap pixmap);
-    QPixmap convertHeaderlessQByteArrayToQPixmap(QByteArray ba);
+    void runScript(const QString& scriptNamePrefix);
+    void scaleImagePixmap();
+    QByteArray getImageBytesAndRemoveHeader();
 };
 
 #endif // MAINWINDOW_H
