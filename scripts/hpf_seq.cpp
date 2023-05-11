@@ -7,10 +7,11 @@
 void apply_mask(long long(&offsets)[9], float(&mask)[9], long long(&range)[2], unsigned char* (&processed), unsigned char* (&original)) {
 
     for (long long i = range[0]; i < range[1]; ++i) {
-        processed[i] = (float(
+        processed[i] = (float((
             original[i + offsets[0]] * mask[0] + original[i + offsets[1]] * mask[1] + original[i + offsets[2]] * mask[2] +
             original[i + offsets[3]] * mask[3] + original[i + offsets[4]] * mask[4] + original[i + offsets[5]] * mask[5] +
-            original[i + offsets[6]] * mask[6] + original[i + offsets[7]] * mask[7] + original[i + offsets[8]] * mask[8]));
+            original[i + offsets[6]] * mask[6] + original[i + offsets[7]] * mask[7] + original[i + offsets[8]] * mask[8])+
+            8 * 255) / 16.0f);
     }
 
 }
@@ -19,10 +20,11 @@ void apply_maskv(long long(&offsets)[9], float(&mask)[9], long long(&range)[2], 
 
     for (long long i = range[0]; i < range[1]; i += rowsize) {
         for (long long k = i; k < i + 3; k++) {
-            processed[k] = (float(
+            processed[k] = (float((
                 original[k + offsets[0]] * mask[0] + original[k + offsets[1]] * mask[1] + original[k + offsets[2]] * mask[2] +
                 original[k + offsets[3]] * mask[3] + original[k + offsets[4]] * mask[4] + original[k + offsets[5]] * mask[5] +
-                original[k + offsets[6]] * mask[6] + original[k + offsets[7]] * mask[7] + original[k + offsets[8]] * mask[8]));
+                original[k + offsets[6]] * mask[6] + original[k + offsets[7]] * mask[7] + original[k + offsets[8]] * mask[8])+
+                8 * 255) / 16.0f);
         }
     }
 
@@ -55,9 +57,9 @@ int main(int argc, const char** argv) {
     // }; // Gaussian smoothing
     float mask[9] = {
 
-        1 / 9.0f, 1 / 9.0f, 1 / 9.0f,
-        1 / 9.0f, 1 / 9.0f, 1 / 9.0f,
-        1 / 9.0f, 1 / 9.0f, 1 / 9.0f,
+        -1.0f, -1.0f, -1.0f,
+        -1.0f, 8.0f, -1.0f,
+        -1.0f, -1.0f, -1.0f,
 
     }; // Normal smoothing
 
@@ -165,33 +167,41 @@ int main(int argc, const char** argv) {
     };
 
     // Process it
-    unsigned char* blurred_data = (unsigned char*) malloc(data_size);
+    unsigned char* features_data = (unsigned char*) malloc(data_size);
+    unsigned char* sharpened_data = (unsigned char*) malloc(data_size);
+    float pixel_val;
     auto start = std::chrono::steady_clock::now();
     // Processing: Corners
-    apply_mask(topleftoffsets, mask, topleft, blurred_data, data);
-    apply_mask(toprightoffsets, mask, topright, blurred_data, data);
-    apply_mask(bottleftoffsets, mask, bottleft, blurred_data, data);
-    apply_mask(bottrightoffsets, mask, bottright, blurred_data, data);
+    apply_mask(topleftoffsets, mask, topleft, features_data, data);
+    apply_mask(toprightoffsets, mask, topright, features_data, data);
+    apply_mask(bottleftoffsets, mask, bottleft, features_data, data);
+    apply_mask(bottrightoffsets, mask, bottright, features_data, data);
     // Processing: Edges
-    apply_mask(topedgeoffsets, mask, topedge, blurred_data, data);
-    apply_mask(bottedgeoffsets, mask, bottedge, blurred_data, data);
-    apply_maskv(leftedgeoffsets, mask, leftedge, w, blurred_data, data);
-    apply_maskv(rightedgeoffsets, mask, rightedge, w, blurred_data, data);
+    apply_mask(topedgeoffsets, mask, topedge, features_data, data);
+    apply_mask(bottedgeoffsets, mask, bottedge, features_data, data);
+    apply_maskv(leftedgeoffsets, mask, leftedge, w, features_data, data);
+    apply_maskv(rightedgeoffsets, mask, rightedge, w, features_data, data);
     // Processing: Body
     long long iteration_range[2];
     for (long long i = w + 3; i < s - w; i += w) {
 
         iteration_range[0] = i;
         iteration_range[1] = i + w - 3 - 3;
-        apply_mask(alloffsets, mask, iteration_range, blurred_data, data);
+        apply_mask(alloffsets, mask, iteration_range, features_data, data);
 
     }
+    for (long long i = 0; i < data_size; i++)
+    {
+        pixel_val = data[i] + 0.1 * (features_data[i] - data[i]);
+        sharpened_data[i] = pixel_val > 255 ? 255 : pixel_val;
+    }
+    
     auto end = std::chrono::steady_clock::now();
     long long t = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 
     // Write it and terminate
     std::ofstream process_output("bin/temp", std::ios::trunc | std::ios::binary);
-    process_output.write((char *)&blurred_data[0], data_size);
+    process_output.write((char *)&sharpened_data[0], data_size);
     process_output.write(std::to_string(t).c_str(), std::to_string(t).length());
     process_output.flush();
     process_output.close();
