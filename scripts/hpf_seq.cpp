@@ -48,20 +48,21 @@ int main(int argc, const char** argv) {
     process_input.close();
 
     // Preprocessing: Filter mask(s)
-    // float mask[9] = {
-
-    //     0.0625f, 0.1250f, 0.0625f,
-    //     0.1250f, 0.2500f, 0.1250f,
-    //     0.0625f, 0.1250f, 0.0625f,
-
-    // }; // Gaussian smoothing
     float mask[9] = {
 
         -1.0f, -1.0f, -1.0f,
         -1.0f, 8.0f, -1.0f,
         -1.0f, -1.0f, -1.0f,
 
-    }; // Normal smoothing
+    }; // Features detection mask
+    
+    // float mask[9] = {
+
+    //     0.0f, -1.0f, 0.0f,
+    //     -1.0f, 4.0f, -1.0f,
+    //     0.0f, -1.0f, 0.0f,
+
+    // }; // Edge detection mask
 
     // Preprocessing: Convenience naming
     long long w = data_width * 3; // data width in bytes
@@ -192,7 +193,7 @@ int main(int argc, const char** argv) {
     }
     for (long long i = 0; i < data_size; i++)
     {
-        pixel_val = data[i] + 0.1 * (features_data[i] - data[i]);
+        pixel_val = (features_data[i] > 124 && features_data[i] < 130) ? data[i] : 0.05 * features_data[i] + data[i];
         sharpened_data[i] = pixel_val > 255 ? 255 : pixel_val;
     }
     

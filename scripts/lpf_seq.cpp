@@ -46,20 +46,20 @@ int main(int argc, const char** argv) {
     process_input.close();
 
     // Preprocessing: Filter mask(s)
-    // float mask[9] = {
-
-    //     0.0625f, 0.1250f, 0.0625f,
-    //     0.1250f, 0.2500f, 0.1250f,
-    //     0.0625f, 0.1250f, 0.0625f,
-
-    // }; // Gaussian smoothing
     float mask[9] = {
 
-        1 / 9.0f, 1 / 9.0f, 1 / 9.0f,
-        1 / 9.0f, 1 / 9.0f, 1 / 9.0f,
-        1 / 9.0f, 1 / 9.0f, 1 / 9.0f,
+        0.0625f, 0.1250f, 0.0625f,
+        0.1250f, 0.2500f, 0.1250f,
+        0.0625f, 0.1250f, 0.0625f,
 
-    }; // Normal smoothing
+    }; // Gaussian smoothing
+    // float mask[9] = {
+
+    //     1 / 9.0f, 1 / 9.0f, 1 / 9.0f,
+    //     1 / 9.0f, 1 / 9.0f, 1 / 9.0f,
+    //     1 / 9.0f, 1 / 9.0f, 1 / 9.0f,
+
+    // }; // Normal smoothing
 
     // Preprocessing: Convenience naming
     long long w = data_width * 3; // data width in bytes
