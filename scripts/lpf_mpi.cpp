@@ -43,7 +43,6 @@ int main(int argc, const char** argv) {
     long long w;                // Data width in bytes
     long long& s = data_size;   // Data size in bytes
     unsigned char* blurred_data;// Processed data
-    long long t_edges;          // Time taken to process edges and corners
 
     // Preprocessing: Filter mask(s)
     float mask[9] = {
@@ -60,15 +59,6 @@ int main(int argc, const char** argv) {
     //     1 / 9.0f, 1 / 9.0f, 1 / 9.0f,
 
     // }; // Normal smoothing
-
-    // More information in lines 105-117
-    long long alloffsets[9] = {
-
-        -w - 3, -w,     -w + 3,
-        -3,     0,      3,
-        w - 3,  w,      w + 3,
-
-    };
 
     if (rank == 0) {
 
@@ -90,6 +80,61 @@ int main(int argc, const char** argv) {
         // Preprocessing: Convenience naming
         w = data_width * 3; // data width in bytes
 
+
+        blurred_data = (unsigned char*) malloc(data_size);
+    }
+
+    // Important broadcasts for the code to function properly
+    MPI_Bcast(&data_width, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&data_height, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&data_size, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
+    if (rank != 0) {
+        w = data_width * 3;
+        data = (unsigned char*) malloc(data_size);
+        blurred_data = (unsigned char*) malloc(data_size);
+    }
+    // std::cerr << "Rank: " << rank << std::endl;
+    MPI_Bcast(data, data_size, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
+
+    // More information in lines 152-164
+    long long alloffsets[9] = {
+
+        -w - 3, -w,     -w + 3,
+        -3,     0,      3,
+        w - 3,  w,      w + 3,
+
+    };
+
+    // Processing: Body
+    long long iteration_range[2];
+    // TODO: if not divisible by 3, some rows would be skipped
+    long long iteration_size = (data_height - 2) * w / num_processes;
+    long long iteration_start = w + 3 + rank * iteration_size;
+    long long iteration_end = iteration_start + iteration_size;
+    auto start = std::chrono::steady_clock::now();
+    for (long long i = iteration_start; i < iteration_end; i += w) {
+
+        iteration_range[0] = i;
+        iteration_range[1] = i + w - 3 - 3;
+        apply_mask(alloffsets, mask, iteration_range, blurred_data, data);
+
+    }
+    
+    int *displs = (int *)malloc(num_processes * sizeof(int)); 
+    int *rcounts = (int *)malloc(num_processes * sizeof(int)); 
+    for (int i=0; i < num_processes; ++i) { 
+        displs[i] = i * iteration_size;
+        rcounts[i] = iteration_size;
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    MPI_Gatherv(&blurred_data[iteration_start], iteration_size, MPI_UNSIGNED_CHAR, &blurred_data[w + 3], rcounts, displs, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
+    MPI_Barrier(MPI_COMM_WORLD);
+    auto end = std::chrono::steady_clock::now();
+    long long t = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+
+    if (rank == 0)
+    {
         // Preprocessing: Corner pixels start/end bytes (inclusive, exclusive)
         long long topleft[] = { 0, 3 };
         long long topright[] = { w - 3, w };
@@ -180,57 +225,20 @@ int main(int argc, const char** argv) {
 
         };
 
-        // Process it
-        blurred_data = (unsigned char*) malloc(data_size);
         auto start_edges = std::chrono::steady_clock::now();
         // Processing: Corners
         apply_mask(topleftoffsets, mask, topleft, blurred_data, data);
         apply_mask(toprightoffsets, mask, topright, blurred_data, data);
         apply_mask(bottleftoffsets, mask, bottleft, blurred_data, data);
         apply_mask(bottrightoffsets, mask, bottright, blurred_data, data);
-        // Processing: Edges
+        // // Processing: Edges
         apply_mask(topedgeoffsets, mask, topedge, blurred_data, data);
         apply_mask(bottedgeoffsets, mask, bottedge, blurred_data, data);
         apply_maskv(leftedgeoffsets, mask, leftedge, w, blurred_data, data);
         apply_maskv(rightedgeoffsets, mask, rightedge, w, blurred_data, data);
         auto end_edges = std::chrono::steady_clock::now();
-        t_edges = std::chrono::duration_cast<std::chrono::milliseconds>(end_edges - start_edges).count();
-    }
+        long long t_edges = std::chrono::duration_cast<std::chrono::milliseconds>(end_edges - start_edges).count();
 
-    // Important broadcasts for the code to function properly
-    MPI_Bcast(&data_width, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&data_size, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
-    if (rank != 0) {
-        w = data_width * 3;
-        data = (unsigned char*) malloc(data_size);
-        blurred_data = (unsigned char*) malloc(data_size);
-
-    }
-    MPI_Bcast(&data, data_size, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&blurred_data, data_size, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
-
-    // Processing: Body
-    long long iteration_range[2];
-    // Start = w + 3
-    // End = s - w
-    long long iteration_size = (s - w - w - 3) / num_processes;
-    long long iteration_start = w + 3 + rank * iteration_size;
-    long long iteration_end = iteration_start + iteration_size;
-    auto start = std::chrono::steady_clock::now();
-    for (long long i = iteration_start; i < iteration_end; i += w) {
-
-        iteration_range[0] = i;
-        iteration_range[1] = i + w - 3 - 3;
-        apply_mask(alloffsets, mask, iteration_range, blurred_data, data);
-
-    }
-    MPI_Gather(blurred_data, iteration_size, MPI_UNSIGNED_CHAR, blurred_data, iteration_size, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
-    MPI_Barrier(MPI_COMM_WORLD);
-    auto end = std::chrono::steady_clock::now();
-    long long t = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-
-    if (rank == 0)
-    {
         // Write it and terminate
         std::ofstream process_output("bin/temp", std::ios::trunc | std::ios::binary);
         process_output.write((char *)&blurred_data[0], data_size);

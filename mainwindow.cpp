@@ -119,7 +119,7 @@ void MainWindow::runScript(const QString& scriptNamePrefix) {
     process->setWorkingDirectory(QApplication::applicationDirPath());
     if (seqRB->isChecked()) process->start(QString("bin/%1_%2.exe").arg(scriptNamePrefix, "seq"));
     else if (ompRB->isChecked()) process->start(QString("bin/%1_%2.exe").arg(scriptNamePrefix, "omp"));
-    else process->start("mpiexec", QStringList() << "-n 16" << QString("bin/%1_%2.exe").arg(scriptNamePrefix, "mpi"));
+    else process->start("mpiexec", QStringList() << "-n" << "4" << QString("bin/%1_%2.exe").arg(scriptNamePrefix, "mpi"));
     process->waitForFinished();
     printf(process->readAllStandardError());
     fflush(stdout);
