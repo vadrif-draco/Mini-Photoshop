@@ -36,14 +36,17 @@ public:
     ~MainWindow();
     double scaleFactor = 1.0;
     QLabel* pixelLabel;
+    QString currentImageFileLocation;
     QColor getPixelAt(unsigned int x, unsigned int y);
 
 private slots:
     void on_actionOpen_triggered();
 
-    void on_actionExit_triggered();
+    void on_actionRestore_triggered();
 
     void on_actionSave_triggered();
+
+    void on_actionExit_triggered();
 
     void on_actionBlur_triggered();
 
@@ -69,6 +72,8 @@ private slots:
 
     void on_zoomOutBtn_clicked();
 
+    void on_zoomRestoreBtn_clicked();
+
 private:
     Ui::MainWindow* ui;
     QImage image;
@@ -76,7 +81,7 @@ private:
     QRadioButton* seqRB;
     QRadioButton* ompRB;
     QRadioButton* mpiRB;
-    bool loadFile(const QString& fileName);
+    bool loadFile(const QString& fileName, bool retainScaleFactor);
     bool saveFile(const QString& fileName);
     void runScript(const QString& scriptNamePrefix);
     void scaleImagePixmap();

@@ -50,7 +50,7 @@ static void initializeImageFileDialog(QFileDialog& dialog, QFileDialog::AcceptMo
     if (acceptMode == QFileDialog::AcceptSave) dialog.setDefaultSuffix("jpg");
 }
 
-bool MainWindow::loadFile(const QString& fileName) {
+bool MainWindow::loadFile(const QString& fileName, bool retainScaleFactor = false) {
     QImageReader reader(fileName);
     reader.setAutoTransform(true);
     image = reader.read();
@@ -62,7 +62,7 @@ bool MainWindow::loadFile(const QString& fileName) {
         );
         return false;
     }
-    scaleFactor = 1.0;
+    if (retainScaleFactor == false) scaleFactor = 1.0;
     ui->imageLabel->setPixmap(QPixmap::fromImage(image));
     ui->imageLabel->setFixedSize(image.size());
     ui->statusbar->showMessage(QString("Loaded image of size: %1x%2").arg(ui->imageLabel->width()).arg(ui->imageLabel->height()));
@@ -136,7 +136,17 @@ void MainWindow::runScript(const QString& scriptNamePrefix) {
 void MainWindow::on_actionOpen_triggered() {
     QFileDialog dialog(this, tr("Open File"));
     initializeImageFileDialog(dialog, QFileDialog::AcceptOpen);
-    while (dialog.exec() == QDialog::Accepted && !loadFile(dialog.selectedFiles().constFirst())) {}
+    currentImageFileLocation = NULL;
+    while (dialog.exec() == QDialog::Accepted) {
+        currentImageFileLocation = dialog.selectedFiles().constFirst();
+        if (loadFile(currentImageFileLocation) == true) break;
+    }
+}
+
+void MainWindow::on_actionRestore_triggered() {
+    loadFile(currentImageFileLocation, true);
+    scaleImagePixmap();
+    ui->statusbar->showMessage(QString("Restored image (zoom scale factor retained)"));
 }
 
 void MainWindow::on_actionSave_triggered() {
@@ -193,8 +203,8 @@ void MainWindow::scaleImagePixmap() {
             QPixmap::fromImage(image).height() * scaleFactor,
             Qt::KeepAspectRatio,
             Qt::FastTransformation
-            )
-        );
+        )
+    );
     ui->imageLabel->setFixedSize(ui->imageLabel->pixmap().size());
 }
 
@@ -210,6 +220,14 @@ void MainWindow::on_zoomInBtn_clicked() {
 }
 
 void MainWindow::on_zoomFitBtn_clicked() {
+    scaleFactor = fmin(
+        float(ui->imageScrollArea->width()) / float(image.width()),
+        float(ui->imageScrollArea->height()) / float(image.height())) * 0.9;
+    scaleImagePixmap();
+    ui->statusbar->showMessage(QString("Image fit to display"));
+}
+
+void MainWindow::on_zoomRestoreBtn_clicked() {
     scaleFactor = 1.0f;
     scaleImagePixmap();
     ui->statusbar->showMessage(QString("Restored to: %1x%2").arg(ui->imageLabel->width()).arg(ui->imageLabel->height()));

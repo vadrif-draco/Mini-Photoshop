@@ -9,5 +9,6 @@
         <file>icons/ZoomOut.svg</file>
         <file>icons/ZoomRestore.svg</file>
         <file>icons/MainWindow.svg.png</file>
+        <file>icons/ZoomFit.svg</file>
     </qresource>
 </RCC>

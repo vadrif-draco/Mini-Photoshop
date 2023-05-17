@@ -68,8 +68,8 @@
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>876</width>
-         <height>616</height>
+         <width>839</width>
+         <height>630</height>
         </rect>
        </property>
        <layout class="QGridLayout" name="gridLayout_2">
@@ -128,7 +128,7 @@
      <x>0</x>
      <y>0</y>
      <width>960</width>
-     <height>25</height>
+     <height>21</height>
     </rect>
    </property>
   </widget>
@@ -147,6 +147,7 @@
     <bool>false</bool>
    </attribute>
    <addaction name="actionOpen"/>
+   <addaction name="actionRestore"/>
    <addaction name="actionSave"/>
    <addaction name="separator"/>
    <addaction name="actionBlur"/>
@@ -212,7 +213,49 @@
      <property name="verticalSpacing">
       <number>16</number>
      </property>
-     <item row="5" column="0" alignment="Qt::AlignHCenter">
+     <item row="0" column="1">
+      <spacer name="verticalSpacerTop">
+       <property name="orientation">
+        <enum>Qt::Vertical</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>20</width>
+         <height>40</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item row="3" column="1">
+      <widget class="QToolButton" name="selEllipseBtn">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+       <property name="toolTip">
+        <string>Elliptical selection</string>
+       </property>
+       <property name="text">
+        <string/>
+       </property>
+       <property name="icon">
+        <iconset resource="icons.qrc">
+         <normaloff>:/icons/SelectEllipse.svg</normaloff>:/icons/SelectEllipse.svg</iconset>
+       </property>
+       <property name="iconSize">
+        <size>
+         <width>32</width>
+         <height>32</height>
+        </size>
+       </property>
+       <property name="checkable">
+        <bool>true</bool>
+       </property>
+       <property name="toolButtonStyle">
+        <enum>Qt::ToolButtonIconOnly</enum>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="1">
       <widget class="QToolButton" name="selLassoBtn">
        <property name="enabled">
         <bool>false</bool>
@@ -250,66 +293,7 @@
        </property>
       </widget>
      </item>
-     <item row="1" column="0">
-      <spacer name="verticalSpacerTop">
-       <property name="orientation">
-        <enum>Qt::Vertical</enum>
-       </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>20</width>
-         <height>40</height>
-        </size>
-       </property>
-      </spacer>
-     </item>
-     <item row="8" column="0" alignment="Qt::AlignHCenter">
-      <widget class="QToolButton" name="zoomFitBtn">
-       <property name="toolTip">
-        <string>Zoom fit</string>
-       </property>
-       <property name="text">
-        <string/>
-       </property>
-       <property name="icon">
-        <iconset resource="icons.qrc">
-         <normaloff>:/icons/ZoomRestore.svg</normaloff>:/icons/ZoomRestore.svg</iconset>
-       </property>
-       <property name="iconSize">
-        <size>
-         <width>32</width>
-         <height>32</height>
-        </size>
-       </property>
-       <property name="toolButtonStyle">
-        <enum>Qt::ToolButtonIconOnly</enum>
-       </property>
-      </widget>
-     </item>
-     <item row="7" column="0" alignment="Qt::AlignHCenter">
-      <widget class="QToolButton" name="zoomInBtn">
-       <property name="toolTip">
-        <string>Zoom in</string>
-       </property>
-       <property name="text">
-        <string/>
-       </property>
-       <property name="icon">
-        <iconset resource="icons.qrc">
-         <normaloff>:/icons/ZoomIn.svg</normaloff>:/icons/ZoomIn.svg</iconset>
-       </property>
-       <property name="iconSize">
-        <size>
-         <width>32</width>
-         <height>32</height>
-        </size>
-       </property>
-       <property name="toolButtonStyle">
-        <enum>Qt::ToolButtonIconOnly</enum>
-       </property>
-      </widget>
-     </item>
-     <item row="3" column="0" alignment="Qt::AlignHCenter">
+     <item row="2" column="1">
       <widget class="QToolButton" name="selRectBtn">
        <property name="enabled">
         <bool>false</bool>
@@ -338,17 +322,17 @@
        </property>
       </widget>
      </item>
-     <item row="9" column="0">
-      <widget class="QToolButton" name="zoomOutBtn">
+     <item row="8" column="1">
+      <widget class="QToolButton" name="zoomFitBtn">
        <property name="toolTip">
-        <string>Zoom out</string>
+        <string>Zoom fit to window</string>
        </property>
        <property name="text">
         <string/>
        </property>
        <property name="icon">
         <iconset resource="icons.qrc">
-         <normaloff>:/icons/ZoomOut.svg</normaloff>:/icons/ZoomOut.svg</iconset>
+         <normaloff>:/icons/ZoomFit.svg</normaloff>:/icons/ZoomFit.svg</iconset>
        </property>
        <property name="iconSize">
         <size>
@@ -356,18 +340,35 @@
          <height>32</height>
         </size>
        </property>
-       <property name="checkable">
-        <bool>false</bool>
+       <property name="toolButtonStyle">
+        <enum>Qt::ToolButtonIconOnly</enum>
        </property>
-       <property name="checked">
-        <bool>false</bool>
+      </widget>
+     </item>
+     <item row="11" column="1">
+      <widget class="QToolButton" name="zoomRestoreBtn">
+       <property name="toolTip">
+        <string>Zoom restore to original dimensions</string>
+       </property>
+       <property name="text">
+        <string/>
+       </property>
+       <property name="icon">
+        <iconset resource="icons.qrc">
+         <normaloff>:/icons/ZoomRestore.svg</normaloff>:/icons/ZoomRestore.svg</iconset>
+       </property>
+       <property name="iconSize">
+        <size>
+         <width>32</width>
+         <height>32</height>
+        </size>
        </property>
        <property name="toolButtonStyle">
         <enum>Qt::ToolButtonIconOnly</enum>
        </property>
       </widget>
      </item>
-     <item row="6" column="0">
+     <item row="5" column="1">
       <spacer name="verticalSpacerMid">
        <property name="orientation">
         <enum>Qt::Vertical</enum>
@@ -383,7 +384,30 @@
        </property>
       </spacer>
      </item>
-     <item row="2" column="0">
+     <item row="6" column="1">
+      <widget class="QToolButton" name="zoomInBtn">
+       <property name="toolTip">
+        <string>Zoom in by 1.25x</string>
+       </property>
+       <property name="text">
+        <string/>
+       </property>
+       <property name="icon">
+        <iconset resource="icons.qrc">
+         <normaloff>:/icons/ZoomIn.svg</normaloff>:/icons/ZoomIn.svg</iconset>
+       </property>
+       <property name="iconSize">
+        <size>
+         <width>32</width>
+         <height>32</height>
+        </size>
+       </property>
+       <property name="toolButtonStyle">
+        <enum>Qt::ToolButtonIconOnly</enum>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
       <widget class="QToolButton" name="selNoneBtn">
        <property name="enabled">
         <bool>true</bool>
@@ -415,36 +439,7 @@
        </property>
       </widget>
      </item>
-     <item row="4" column="0" alignment="Qt::AlignHCenter">
-      <widget class="QToolButton" name="selEllipseBtn">
-       <property name="enabled">
-        <bool>false</bool>
-       </property>
-       <property name="toolTip">
-        <string>Elliptical selection</string>
-       </property>
-       <property name="text">
-        <string/>
-       </property>
-       <property name="icon">
-        <iconset resource="icons.qrc">
-         <normaloff>:/icons/SelectEllipse.svg</normaloff>:/icons/SelectEllipse.svg</iconset>
-       </property>
-       <property name="iconSize">
-        <size>
-         <width>32</width>
-         <height>32</height>
-        </size>
-       </property>
-       <property name="checkable">
-        <bool>true</bool>
-       </property>
-       <property name="toolButtonStyle">
-        <enum>Qt::ToolButtonIconOnly</enum>
-       </property>
-      </widget>
-     </item>
-     <item row="10" column="0">
+     <item row="12" column="1">
       <spacer name="verticalSpacerBott">
        <property name="orientation">
         <enum>Qt::Vertical</enum>
@@ -456,6 +451,35 @@
         </size>
        </property>
       </spacer>
+     </item>
+     <item row="7" column="1">
+      <widget class="QToolButton" name="zoomOutBtn">
+       <property name="toolTip">
+        <string>Zoom out by 0.8x</string>
+       </property>
+       <property name="text">
+        <string/>
+       </property>
+       <property name="icon">
+        <iconset resource="icons.qrc">
+         <normaloff>:/icons/ZoomOut.svg</normaloff>:/icons/ZoomOut.svg</iconset>
+       </property>
+       <property name="iconSize">
+        <size>
+         <width>32</width>
+         <height>32</height>
+        </size>
+       </property>
+       <property name="checkable">
+        <bool>false</bool>
+       </property>
+       <property name="checked">
+        <bool>false</bool>
+       </property>
+       <property name="toolButtonStyle">
+        <enum>Qt::ToolButtonIconOnly</enum>
+       </property>
+      </widget>
      </item>
     </layout>
    </widget>
@@ -547,6 +571,14 @@
    </property>
    <property name="toolTip">
     <string>Invert selected portion of the image (if no selection is provided, applies to entire image)</string>
+   </property>
+  </action>
+  <action name="actionRestore">
+   <property name="text">
+    <string>Restore</string>
+   </property>
+   <property name="toolTip">
+    <string>Restores the image to what you originally opened</string>
    </property>
   </action>
  </widget>

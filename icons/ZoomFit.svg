@@ -7,7 +7,7 @@
    viewBox="0 0 100 100"
    version="1.1"
    id="svg8"
-   sodipodi:docname="ZoomOut.svg"
+   sodipodi:docname="ZoomFit.svg"
    inkscape:version="1.1 (c68e22c387, 2021-05-23)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
@@ -24,9 +24,9 @@
      inkscape:pageopacity="0"
      inkscape:pagecheckerboard="0"
      showgrid="false"
-     inkscape:zoom="0.545"
-     inkscape:cx="541.2844"
-     inkscape:cy="406.42202"
+     inkscape:zoom="0.2725"
+     inkscape:cx="-392.66055"
+     inkscape:cy="746.78899"
      inkscape:window-width="1920"
      inkscape:window-height="1057"
      inkscape:window-x="-8"
@@ -43,6 +43,7 @@
      id="path4" />
   <path
      style="fill:none;stroke:#222222;stroke-width:4.8"
-     d="m 25.168158,40.439492 h 32"
-     id="path6" />
+     d="m 30.968158,38.039492 v -8 h 8 m 4,0 h 8 v 8 m 0,4 v 8 h -8 m -4,0 h -8 v -8"
+     id="path6"
+     sodipodi:nodetypes="cccccccccccc" />
 </svg>
