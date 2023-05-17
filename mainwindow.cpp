@@ -31,6 +31,13 @@ QColor MainWindow::getPixelAt(unsigned int x, unsigned int y) {
     return image.pixel(QPoint(x, y));
 }
 
+MainWindow::Selection MainWindow::getCurrentSelectionMode() {
+    if (ui->selNoneBtn->isChecked()) return Selection::None;
+    else if (ui->selRectBtn->isChecked()) return Selection::Rectangular;
+    else if (ui->selEllipseBtn->isChecked()) return Selection::Elliptical;
+    else return Selection::Lasso;
+}
+
 static void initializeImageFileDialog(QFileDialog& dialog, QFileDialog::AcceptMode acceptMode) {
     static bool firstPrompt = true;
 
@@ -86,11 +93,12 @@ bool MainWindow::saveFile(const QString& fileName) {
     return true;
 }
 
-QByteArray MainWindow::getImageBytesAndRemoveHeader() {
+QByteArray MainWindow::getImageBytesAndRemoveHeader(QImage* imageIn = nullptr) {
     QByteArray ba;
     QBuffer buff(&ba);
     buff.open(QIODeviceBase::WriteOnly);
-    image.save(&buff, "PPM");
+    if (imageIn == nullptr) imageIn = &this->image;
+    imageIn->save(&buff, "PPM");
     // The PPM format puts data in the form of a header that spans three lines then all the pixels
     // So here I strip out the header by counting lines
     uchar newLineOccurrences = 0, index = 0;
@@ -103,13 +111,41 @@ QByteArray MainWindow::getImageBytesAndRemoveHeader() {
 }
 
 void MainWindow::runScript(const QString& scriptNamePrefix) {
+
+    QImage* imageIn = &image;
+    QPixmap originalImagePixmap = QPixmap::fromImage(image);
+    QPoint* startingPoint = ui->imageLabel->selectionStart;
+    QPoint* endingPoint = ui->imageLabel->selectionEnd;
+
+    QPixmap selectionPixmap;
+    QPoint scaledStartingPoint;
+    QPoint scaledEndingPoint;
+    switch (getCurrentSelectionMode()) {
+        case MainWindow::Selection::None:
+            break;
+        case MainWindow::Selection::Rectangular:
+            if (startingPoint != nullptr && endingPoint != nullptr) {
+                scaledStartingPoint = QPoint(startingPoint->x() / scaleFactor, startingPoint->y() / scaleFactor);
+                scaledEndingPoint = QPoint(endingPoint->x() / scaleFactor, endingPoint->y() / scaleFactor);
+                selectionPixmap = originalImagePixmap.copy(QRect(scaledStartingPoint, scaledEndingPoint));
+                imageIn = new QImage(selectionPixmap.toImage());
+            }
+            break;
+        case MainWindow::Selection::Elliptical:
+            break;
+        case MainWindow::Selection::Lasso:
+            break;
+        default:
+            break;
+    }
+
     QFile temp(QApplication::applicationDirPath().append("/bin/temp"));
     temp.open(QIODevice::WriteOnly);
-    QByteArray ba = getImageBytesAndRemoveHeader();
+    QByteArray ba = getImageBytesAndRemoveHeader(imageIn);
     const char separator = 0;
-    temp.write(QString::number(image.height()).toUtf8());
+    temp.write(QString::number(imageIn->height()).toUtf8());
     temp.write(&separator, 1);
-    temp.write(QString::number(image.width()).toUtf8());
+    temp.write(QString::number(imageIn->width()).toUtf8());
     temp.write(&separator, 1);
     temp.write(ba);
     temp.flush();
@@ -127,6 +163,18 @@ void MainWindow::runScript(const QString& scriptNamePrefix) {
 
     temp.open(QIODevice::ReadOnly);
     image.loadFromData(temp.read(ba.size()).prepend(imageHeader.toUtf8()), "PPM");
+
+    QPainter painter(&originalImagePixmap);
+    if (startingPoint != nullptr && endingPoint != nullptr) {
+        painter.drawPixmap(
+            fmin(scaledStartingPoint.x(), scaledEndingPoint.x()),
+            fmin(scaledStartingPoint.y(), scaledEndingPoint.y()),
+            QPixmap::fromImage(image)
+        );
+        painter.end();
+        image = originalImagePixmap.toImage();
+    }
+
     scaleImagePixmap();
     ui->statusbar->showMessage(QString("Time taken: %1 ms").arg(temp.readAll()));
     temp.close();
@@ -177,23 +225,6 @@ void MainWindow::on_actionEqualize_Histogram_triggered() {
 
 void MainWindow::on_actionInvert_triggered() {
     runScript(QString("invert"));
-}
-
-void MainWindow::on_selNoneBtn_clicked() {
-//    TODO
-}
-
-void MainWindow::on_selRectBtn_clicked() {
-//    TODO
-//    ui->imageLabel->pixmap().copy(); can take a rectangle argument!
-}
-
-void MainWindow::on_selEllipseBtn_clicked() {
-//    TODO
-}
-
-void MainWindow::on_selLassoBtn_clicked() {
-//    TODO
 }
 
 void MainWindow::scaleImagePixmap() {
