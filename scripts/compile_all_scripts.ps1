@@ -1,4 +1,4 @@
-$scripts_prefixes = "invert", "lpf"
+$scripts_prefixes = "invert", "lpf", "hpf", "cluster", "equalize"
 
 foreach ($prefix in $scripts_prefixes) {
     
