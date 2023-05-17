@@ -81,11 +81,10 @@ int main(int argc, const char** argv) {
         data = (unsigned char*) malloc(data_size);
         process_input.read((char *)&data[0], data_size);
         process_input.close();
-
-        sharpened_data = (unsigned char*) malloc(data_size);
     }
 
     features_data = (unsigned char*) malloc(data_size);
+    sharpened_data = (unsigned char*) malloc(data_size);
 
     // Important broadcasts for the code to function properly
     MPI_Bcast(&data_height, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
@@ -121,7 +120,7 @@ int main(int argc, const char** argv) {
 
         iteration_range[0] = i * w + 3; // + 3 to exclude the first pixel
         iteration_range[1] = i * w + w - 3; // - 3 to exclude the last pixel
-        apply_mask(alloffsets, mask, iteration_range, features_data, data);
+        apply_mask(alloffsets, mask, iteration_range, local_features_data, data);
 
     }
 
