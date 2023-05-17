@@ -40,8 +40,6 @@ int main(int argc, const char** argv) {
     long long data_width;       // Width in pixels
     long long data_size;        // 3 bytes per pixel, representing RGB channels
     unsigned char* data;        // Data (pixels) to be processed
-    long long w;                // Data width in bytes
-    long long& s = data_size;   // Data size in bytes
     unsigned char* blurred_data;// Processed data
 
     // Preprocessing: Filter mask(s)
@@ -70,33 +68,32 @@ int main(int argc, const char** argv) {
         data_height = std::stoll(data_height_str); // in pixels
         data_width = std::stoll(data_width_str); // in pixels
         data_size = data_height * data_width * 3; // 3 bytes per pixel, representing RGB channels
-        std::cerr << data_size << " bytes (" << data_height << " x " << data_width << " x 3)" << std::endl;
+        fprintf(stderr, "%lld bytes (%lld x %lld x 3)\n", data_size, data_height, data_width);
+        fflush(stderr);
 
         // Get data (pixels) to be processed
         data = (unsigned char*) malloc(data_size);
-        process_input.read((char *)&data[0], data_size);
+        process_input.read((char*) &data[0], data_size);
         process_input.close();
 
-        // Preprocessing: Convenience naming
-        w = data_width * 3; // data width in bytes
-
-
+        // Prepare the blurred data for later
         blurred_data = (unsigned char*) malloc(data_size);
+
     }
 
     // Important broadcasts for the code to function properly
-    MPI_Bcast(&data_width, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
     MPI_Bcast(&data_height, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&data_width, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
     MPI_Bcast(&data_size, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
-    if (rank != 0) {
-        w = data_width * 3;
-        data = (unsigned char*) malloc(data_size);
-        blurred_data = (unsigned char*) malloc(data_size);
-    }
-    // std::cerr << "Rank: " << rank << std::endl;
+
+    if (rank != 0) data = (unsigned char*) malloc(data_size);
     MPI_Bcast(data, data_size, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
 
-    // More information in lines 152-164
+    // Preprocessing: Convenience naming
+    long long w = data_width * 3; // Data width in bytes rather than pixels
+    long long& s = data_size; // Data size in bytes
+
+    // Preprocessing: Offsets (more information in other "preprocessing" lines later)
     long long alloffsets[9] = {
 
         -w - 3, -w,     -w + 3,
@@ -107,34 +104,72 @@ int main(int argc, const char** argv) {
 
     // Processing: Body
     long long iteration_range[2];
-    // TODO: if not divisible by 3, some rows would be skipped
-    long long iteration_size = (data_height - 2) * w / num_processes;
-    long long iteration_start = w + 3 + rank * iteration_size;
-    long long iteration_end = iteration_start + iteration_size;
+    long long num_of_rows = (data_height - 2) / num_processes; // Number of rows to be processed per process
+    long long remainder_rows = (data_height - 2) % num_processes; // Number of remaining rows due to individibility
+    long long first_row = 1 + rank * num_of_rows;
+    long long last_row = first_row + num_of_rows;
+    unsigned char* local_blurred_data = (unsigned char*) malloc(data_size);
     auto start = std::chrono::steady_clock::now();
-    for (long long i = iteration_start; i < iteration_end; i += w) {
+    for (long long i = first_row; i < last_row; ++i) {
 
-        iteration_range[0] = i;
-        iteration_range[1] = i + w - 3 - 3;
-        apply_mask(alloffsets, mask, iteration_range, blurred_data, data);
+        iteration_range[0] = i * w + 3; // + 3 to exclude the first pixel
+        iteration_range[1] = i * w + w - 3; // - 3 to exclude the last pixel
+        apply_mask(alloffsets, mask, iteration_range, local_blurred_data, data);
 
     }
-    
-    int *displs = (int *)malloc(num_processes * sizeof(int)); 
-    int *rcounts = (int *)malloc(num_processes * sizeof(int)); 
-    for (int i=0; i < num_processes; ++i) { 
-        displs[i] = i * iteration_size;
-        rcounts[i] = iteration_size;
-    }
-    MPI_Barrier(MPI_COMM_WORLD);
 
-    MPI_Gatherv(&blurred_data[iteration_start], iteration_size, MPI_UNSIGNED_CHAR, &blurred_data[w + 3], rcounts, displs, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
-    MPI_Barrier(MPI_COMM_WORLD);
-    auto end = std::chrono::steady_clock::now();
-    long long t = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    int* displs = (int*) malloc(num_processes * sizeof(int));
+    int* rcounts = (int*) malloc(num_processes * sizeof(int));
+    for (int r = 0; r < num_processes; ++r) { // r for rank
+        rcounts[r] = num_of_rows * w; // Receiving entire rows
+        displs[r] = r * num_of_rows * w; // How many bytes to skip for this process
+    }
+
+    // MPI_Comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_RETURN);
+
+    int ret = MPI_Gatherv(
+
+        &local_blurred_data[first_row * w], // The beginning of the local data buffer from which we're sending elements to the root
+        num_of_rows * w, // The number of elements to be sent (note that we're sending entire rows, including edge pixels!)
+        // This is intentional, and that is why we process edges later in the code, to overwrite the garbage here
+        MPI_UNSIGNED_CHAR, // The type of the elements
+
+        &blurred_data[w], // The root's data buffer that we're receiving into (starting from w to skip first row)
+        rcounts, // The number of elements to be received (per process)
+        displs, // The offset (displacement) into the root's data buffer (per process)
+        MPI_UNSIGNED_CHAR, // The type of the elements
+
+        0, // Za root
+        MPI_COMM_WORLD // Za warudo
+
+    );
+
+    // switch (ret) {
+    //     case MPI_SUCCESS: fprintf(stderr, "Rank %d: MPI_Gatherv returned MPI_SUCCESS\n", rank); break;
+    //     case MPI_ERR_COMM: fprintf(stderr, "Rank %d: MPI_Gatherv returned MPI_ERR_COMM\n", rank); break;
+    //     case MPI_ERR_TYPE: fprintf(stderr, "Rank %d: MPI_Gatherv returned MPI_ERR_TYPE\n", rank); break;
+    //     case MPI_ERR_BUFFER: fprintf(stderr, "Rank %d: MPI_Gatherv returned MPI_ERR_BUFFER\n", rank); break;
+    //     default: break;
+    // }
+    // fflush(stderr);
 
     if (rank == 0)
     {
+
+        // Calculating the remaining rows
+        int starting_remainder_row = data_height - remainder_rows - 1;
+        for (int i = starting_remainder_row; i < data_height - 1; ++i) {
+
+            iteration_range[0] = i * w + 3; // + 3 to exclude the first pixel
+            iteration_range[1] = i * w + w - 3; // - 3 to exclude the last pixel
+            apply_mask(alloffsets, mask, iteration_range, blurred_data, data);
+
+        }
+
+        // Calculate end and time taken by processing body
+        auto end = std::chrono::steady_clock::now();
+        long long t = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+
         // Preprocessing: Corner pixels start/end bytes (inclusive, exclusive)
         long long topleft[] = { 0, 3 };
         long long topright[] = { w - 3, w };
@@ -231,7 +266,7 @@ int main(int argc, const char** argv) {
         apply_mask(toprightoffsets, mask, topright, blurred_data, data);
         apply_mask(bottleftoffsets, mask, bottleft, blurred_data, data);
         apply_mask(bottrightoffsets, mask, bottright, blurred_data, data);
-        // // Processing: Edges
+        // Processing: Edges
         apply_mask(topedgeoffsets, mask, topedge, blurred_data, data);
         apply_mask(bottedgeoffsets, mask, bottedge, blurred_data, data);
         apply_maskv(leftedgeoffsets, mask, leftedge, w, blurred_data, data);
@@ -241,14 +276,14 @@ int main(int argc, const char** argv) {
 
         // Write it and terminate
         std::ofstream process_output("bin/temp", std::ios::trunc | std::ios::binary);
-        process_output.write((char *)&blurred_data[0], data_size);
+        process_output.write((char*) &blurred_data[0], data_size);
         process_output.write(std::to_string(t + t_edges).c_str(), std::to_string(t + t_edges).length());
         process_output.flush();
         process_output.close();
     }
 
     MPI_Finalize();
-    
+
     return 0;
 
 }
