@@ -18,6 +18,7 @@
 #include <QPixmap>
 #include <QProcess>
 #include <QRadioButton>
+#include <QRect>
 #include <QScrollArea>
 #include <QScrollBar>
 #include <QStandardPaths>
@@ -35,9 +36,12 @@ public:
     MainWindow(QWidget* parent = nullptr);
     ~MainWindow();
     double scaleFactor = 1.0;
+    QImage image;
     QLabel* pixelLabel;
     QString currentImageFileLocation;
     QColor getPixelAt(unsigned int x, unsigned int y);
+    enum Selection { None, Rectangular, Elliptical, Lasso };
+    Selection getCurrentSelectionMode();
 
 private slots:
     void on_actionOpen_triggered();
@@ -58,14 +62,6 @@ private slots:
 
     void on_actionInvert_triggered();
 
-    void on_selNoneBtn_clicked();
-
-    void on_selRectBtn_clicked();
-
-    void on_selEllipseBtn_clicked();
-
-    void on_selLassoBtn_clicked();
-
     void on_zoomInBtn_clicked();
 
     void on_zoomFitBtn_clicked();
@@ -76,7 +72,6 @@ private slots:
 
 private:
     Ui::MainWindow* ui;
-    QImage image;
     QString imageHeader;
     QRadioButton* seqRB;
     QRadioButton* ompRB;
@@ -85,7 +80,7 @@ private:
     bool saveFile(const QString& fileName);
     void runScript(const QString& scriptNamePrefix);
     void scaleImagePixmap();
-    QByteArray getImageBytesAndRemoveHeader();
+    QByteArray getImageBytesAndRemoveHeader(QImage*);
 };
 
 #endif // MAINWINDOW_H
