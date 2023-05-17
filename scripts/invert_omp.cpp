@@ -18,7 +18,7 @@ int main(int argc, const char** argv) {
 
     // Get data (pixels) to be processed
     unsigned char* data = (unsigned char*) malloc(data_size);
-    process_input.read((char *)&data, data_size);
+    process_input.read((char*) &data[0], data_size);
     process_input.close();
 
     // Process it
@@ -31,7 +31,7 @@ int main(int argc, const char** argv) {
 
     // Write it and terminate
     std::ofstream process_output("bin/temp", std::ios::trunc | std::ios::binary);
-    process_output.write((char *)&inverted_data[0], data_size);
+    process_output.write((char*) &inverted_data[0], data_size);
     process_output.write(std::to_string(t).c_str(), std::to_string(t).length());
     process_output.flush();
     process_output.close();
