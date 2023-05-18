@@ -83,13 +83,14 @@ int main(int argc, const char** argv) {
         process_input.close();
     }
 
-    features_data = (unsigned char*) malloc(data_size);
-    sharpened_data = (unsigned char*) malloc(data_size);
 
     // Important broadcasts for the code to function properly
     MPI_Bcast(&data_height, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
     MPI_Bcast(&data_width, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
     MPI_Bcast(&data_size, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
+
+    features_data = (unsigned char*) malloc(data_size);
+    sharpened_data = (unsigned char*) malloc(data_size);
 
     if (rank != 0) data = (unsigned char*) malloc(data_size);
     MPI_Bcast(data, data_size, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
@@ -284,7 +285,7 @@ int main(int argc, const char** argv) {
     long long pixels_per_process = data_size / num_processes;
     unsigned char* local_sharpened_data = (unsigned char*) malloc(data_size);
 
-    MPI_Bcast(&features_data, data_size, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
+    MPI_Bcast(features_data, data_size, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
 
     auto start_sharpen = std::chrono::steady_clock::now();
     MPI_Scatter(
