@@ -127,7 +127,14 @@ void MainWindow::runScript(const QString& scriptNamePrefix) {
             if (startingPoint != nullptr && endingPoint != nullptr) {
                 scaledStartingPoint = QPoint(startingPoint->x() / scaleFactor, startingPoint->y() / scaleFactor);
                 scaledEndingPoint = QPoint(endingPoint->x() / scaleFactor, endingPoint->y() / scaleFactor);
-                selectionPixmap = originalImagePixmap.copy(QRect(scaledStartingPoint, scaledEndingPoint));
+                // Notice: Pixmap::copy is retarded and doesn't work with a QRect that has negative values :)
+                // selectionPixmap = originalImagePixmap.copy(QRect(scaledStartingPoint, scaledEndingPoint));
+                selectionPixmap = originalImagePixmap.copy(
+                    fmin(startingPoint->x(), endingPoint->x()),
+                    fmin(startingPoint->y(), endingPoint->y()),
+                    abs(startingPoint->x() - endingPoint->x()),
+                    abs(startingPoint->y() - endingPoint->y())
+                );
                 imageIn = new QImage(selectionPixmap.toImage());
             }
             break;
