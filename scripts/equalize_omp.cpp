@@ -39,7 +39,7 @@ int main(int argc, const char** argv) {
     // Process each channel separately
     for (int ch = 0;ch < 3;ch++)
     {
-        std::fill(std::begin(prob), std::begin(prob),0.0);
+        std::fill(std::begin(prob), std::end(prob),0.0);
 
 
             // Pixel intensity frequency calculation
