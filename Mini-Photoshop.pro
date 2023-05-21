@@ -11,11 +11,12 @@ CONFIG += c++17
 SOURCES += \
     main.cpp \
     mainwindow.cpp \
-    myqlabel.cpp
+    myimageqlabel.cpp
 
 HEADERS += \
     mainwindow.h \
-    myqlabel.h
+    myimageqlabel.h \
+    selection.h
 
 FORMS += \
     mainwindow.ui

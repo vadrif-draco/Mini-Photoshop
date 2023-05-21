@@ -4,13 +4,14 @@
 
 MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWindow) {
     ui->setupUi(this);
+
     ui->imageScrollArea->setBackgroundRole(QPalette::Midlight);
     setCentralWidget(ui->imageScrollArea);
-    ui->imageLabel->mainWindow = this;
 
-    pixelLabel = new QLabel(this);
-    pixelLabel->setForegroundRole(QPalette::Shadow);
-    ui->statusbar->addPermanentWidget(pixelLabel);
+    pixelInfoLabel = new QLabel(this);
+    pixelInfoLabel->setForegroundRole(QPalette::Shadow);
+    QObject::connect(ui->imageLabel, &MyImageQLabel::pixelTextInfo, pixelInfoLabel, &QLabel::setText);
+    ui->statusbar->addPermanentWidget(pixelInfoLabel);
 
     seqRB = new QRadioButton("Sequential", this);
     ompRB = new QRadioButton("OpenMP", this);
@@ -25,17 +26,6 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
 
 MainWindow::~MainWindow() {
     delete ui;
-}
-
-QColor MainWindow::getPixelAt(unsigned int x, unsigned int y) {
-    return image.pixel(QPoint(x, y));
-}
-
-MainWindow::Selection MainWindow::getCurrentSelectionMode() {
-    if (ui->selNoneBtn->isChecked()) return Selection::None;
-    else if (ui->selRectBtn->isChecked()) return Selection::Rectangular;
-    else if (ui->selEllipseBtn->isChecked()) return Selection::Elliptical;
-    else return Selection::Lasso;
 }
 
 static void initializeImageFileDialog(QFileDialog& dialog, QFileDialog::AcceptMode acceptMode) {
@@ -60,8 +50,8 @@ static void initializeImageFileDialog(QFileDialog& dialog, QFileDialog::AcceptMo
 bool MainWindow::loadFile(const QString& fileName, bool retainScaleFactor = false) {
     QImageReader reader(fileName);
     reader.setAutoTransform(true);
-    image = reader.read();
-    if (image.isNull()) {
+    ui->imageLabel->loadedImage = reader.read();
+    if (ui->imageLabel->loadedImage.isNull()) {
         QMessageBox::information(
             this,
             QGuiApplication::applicationDisplayName(),
@@ -69,10 +59,12 @@ bool MainWindow::loadFile(const QString& fileName, bool retainScaleFactor = fals
         );
         return false;
     }
-    if (retainScaleFactor == false) scaleFactor = 1.0;
-    ui->imageLabel->setPixmap(QPixmap::fromImage(image));
-    ui->imageLabel->setFixedSize(image.size());
+    if (retainScaleFactor == false) ui->imageLabel->setScaleFactor(1.0);
+    ui->imageLabel->setPixmap(QPixmap::fromImage(ui->imageLabel->loadedImage));
+    ui->imageLabel->setFixedSize(ui->imageLabel->loadedImage.size());
     ui->statusbar->showMessage(QString("Loaded image of size: %1x%2").arg(ui->imageLabel->width()).arg(ui->imageLabel->height()));
+    ui->selNoneBtn->toggle();
+    on_selNoneBtn_toggled(true);
     return true;
 }
 
@@ -82,7 +74,7 @@ bool MainWindow::saveFile(const QString& fileName) {
     writer.setCompression(0);
     writer.setOptimizedWrite(true);
     writer.setProgressiveScanWrite(true);
-    if (!writer.write(image)) {
+    if (!writer.write(ui->imageLabel->loadedImage)) {
         QMessageBox::information(
             this,
             QGuiApplication::applicationDisplayName(),
@@ -93,12 +85,11 @@ bool MainWindow::saveFile(const QString& fileName) {
     return true;
 }
 
-QByteArray MainWindow::getImageBytesAndRemoveHeader(QImage* imageIn = nullptr) {
+QByteArray MainWindow::getImageBytesAndRemoveHeader(QImage imageIn) {
     QByteArray ba;
     QBuffer buff(&ba);
     buff.open(QIODeviceBase::WriteOnly);
-    if (imageIn == nullptr) imageIn = &this->image;
-    imageIn->save(&buff, "PPM");
+    imageIn.save(&buff, "PPM");
     // The PPM format puts data in the form of a header that spans three lines then all the pixels
     // So here I strip out the header by counting lines
     uchar newLineOccurrences = 0, index = 0;
@@ -106,83 +97,45 @@ QByteArray MainWindow::getImageBytesAndRemoveHeader(QImage* imageIn = nullptr) {
         if (ba.at(index) == '\n') newLineOccurrences++;
         index++;
     }
-    imageHeader = QString(ba.left(index));
+    loadedImageHeader = QString(ba.left(index));
     return ba.mid(index);
 }
 
 void MainWindow::runScript(const QString& scriptNamePrefix) {
+    // First, get the current selection as a QImage
+    QImage selectionToProcess(ui->imageLabel->getSelectionPixmap().toImage());
 
-    QImage* imageIn = &image;
-    QPixmap originalImagePixmap = QPixmap::fromImage(image);
-    QPoint* startingPoint = ui->imageLabel->selectionStart;
-    QPoint* endingPoint = ui->imageLabel->selectionEnd;
-
-    QPixmap selectionPixmap;
-    QPoint scaledStartingPoint;
-    QPoint scaledEndingPoint;
-    switch (getCurrentSelectionMode()) {
-        case MainWindow::Selection::None:
-            break;
-        case MainWindow::Selection::Rectangular:
-            if (startingPoint != nullptr && endingPoint != nullptr) {
-                scaledStartingPoint = QPoint(startingPoint->x() / scaleFactor, startingPoint->y() / scaleFactor);
-                scaledEndingPoint = QPoint(endingPoint->x() / scaleFactor, endingPoint->y() / scaleFactor);
-                // Notice: Pixmap::copy is retarded and doesn't work with a QRect that has negative values :)
-                // selectionPixmap = originalImagePixmap.copy(QRect(scaledStartingPoint, scaledEndingPoint));
-                selectionPixmap = originalImagePixmap.copy(
-                    fmin(startingPoint->x(), endingPoint->x()),
-                    fmin(startingPoint->y(), endingPoint->y()),
-                    abs(startingPoint->x() - endingPoint->x()),
-                    abs(startingPoint->y() - endingPoint->y())
-                );
-                imageIn = new QImage(selectionPixmap.toImage());
-            }
-            break;
-        case MainWindow::Selection::Elliptical:
-            break;
-        case MainWindow::Selection::Lasso:
-            break;
-        default:
-            break;
-    }
-
+    // Next, create a temporary file and write the pixel data into it with our custom header in place of the image's header
     QFile temp(QApplication::applicationDirPath().append("/bin/temp"));
     temp.open(QIODevice::WriteOnly);
-    QByteArray ba = getImageBytesAndRemoveHeader(imageIn);
+    QByteArray ba = getImageBytesAndRemoveHeader(selectionToProcess);
     const char separator = 0;
-    temp.write(QString::number(imageIn->height()).toUtf8());
+    temp.write(QString::number(selectionToProcess.height()).toUtf8());
     temp.write(&separator, 1);
-    temp.write(QString::number(imageIn->width()).toUtf8());
+    temp.write(QString::number(selectionToProcess.width()).toUtf8());
     temp.write(&separator, 1);
     temp.write(ba);
     temp.flush();
     temp.close();
 
-    QProcess* process = new QProcess(this);
-    process->setWorkingDirectory(QApplication::applicationDirPath());
-    if (seqRB->isChecked()) process->start(QString("bin/%1_%2.exe").arg(scriptNamePrefix, "seq"));
-    else if (ompRB->isChecked()) process->start(QString("bin/%1_%2.exe").arg(scriptNamePrefix, "omp"));
-    else process->start("mpiexec", QStringList() << "-n" << "16" << QString("bin/%1_%2.exe").arg(scriptNamePrefix, "mpi"));
-    process->waitForFinished();
-    printf(process->readAllStandardError());
+    // Now create a new process to run the currently chosen script
+    QProcess process(this);
+    process.setWorkingDirectory(QApplication::applicationDirPath());
+    if (seqRB->isChecked()) process.start(QString("bin/%1_%2.exe").arg(scriptNamePrefix, "seq"));
+    else if (ompRB->isChecked()) process.start(QString("bin/%1_%2.exe").arg(scriptNamePrefix, "omp"));
+    else process.start("mpiexec", QStringList() << "-n" << "16" << QString("bin/%1_%2.exe").arg(scriptNamePrefix, "mpi"));
+    process.waitForFinished();
+    printf(process.readAllStandardOutput());
+    printf(process.readAllStandardError());
     fflush(stdout);
-    delete process;
 
+    // Then, open the temporary file once more (it should've been processed and overwritten by the script) and load it as a QPixmap
     temp.open(QIODevice::ReadOnly);
-    image.loadFromData(temp.read(ba.size()).prepend(imageHeader.toUtf8()), "PPM");
+    QPixmap processedSelection;
+    processedSelection.loadFromData(temp.read(ba.size()).prepend(loadedImageHeader.toUtf8()), "PPM");
 
-    QPainter painter(&originalImagePixmap);
-    if (startingPoint != nullptr && endingPoint != nullptr) {
-        painter.drawPixmap(
-            fmin(scaledStartingPoint.x(), scaledEndingPoint.x()),
-            fmin(scaledStartingPoint.y(), scaledEndingPoint.y()),
-            QPixmap::fromImage(image)
-        );
-        painter.end();
-        image = originalImagePixmap.toImage();
-    }
-
-    scaleImagePixmap();
+    // Replace the selected pixmap area with this pixmap and update the status bar to show the time that was taken to process it
+    ui->imageLabel->replaceSelectionPixmap(processedSelection);
     ui->statusbar->showMessage(QString("Time taken: %1 ms").arg(temp.readAll()));
     temp.close();
     temp.remove();
@@ -191,7 +144,6 @@ void MainWindow::runScript(const QString& scriptNamePrefix) {
 void MainWindow::on_actionOpen_triggered() {
     QFileDialog dialog(this, tr("Open File"));
     initializeImageFileDialog(dialog, QFileDialog::AcceptOpen);
-    currentImageFileLocation = NULL;
     while (dialog.exec() == QDialog::Accepted) {
         currentImageFileLocation = dialog.selectedFiles().constFirst();
         if (loadFile(currentImageFileLocation) == true) break;
@@ -200,7 +152,7 @@ void MainWindow::on_actionOpen_triggered() {
 
 void MainWindow::on_actionRestore_triggered() {
     loadFile(currentImageFileLocation, true);
-    scaleImagePixmap();
+    ui->imageLabel->scaleImagePixmap();
     ui->statusbar->showMessage(QString("Restored image (zoom scale factor retained)"));
 }
 
@@ -226,7 +178,7 @@ void MainWindow::on_actionCluster_triggered() {
     runScript(QString("cluster"));
 }
 
-void MainWindow::on_actionEqualize_Histogram_triggered() {
+void MainWindow::on_actionEqualizeHistogram_triggered() {
     runScript(QString("equalize"));
 }
 
@@ -234,16 +186,31 @@ void MainWindow::on_actionInvert_triggered() {
     runScript(QString("invert"));
 }
 
-void MainWindow::scaleImagePixmap() {
-    ui->imageLabel->setPixmap(
-        QPixmap::fromImage(image).scaled(
-            QPixmap::fromImage(image).width() * scaleFactor,
-            QPixmap::fromImage(image).height() * scaleFactor,
-            Qt::KeepAspectRatio,
-            Qt::FastTransformation
-        )
-    );
-    ui->imageLabel->setFixedSize(ui->imageLabel->pixmap().size());
+void MainWindow::on_selNoneBtn_toggled(bool checked) {
+    if (checked) {
+        ui->imageLabel->setSelectionMode(Selection::None);
+    }
+}
+
+
+void MainWindow::on_selRectBtn_toggled(bool checked) {
+    if (checked) {
+        ui->imageLabel->setSelectionMode(Selection::Rectangular);
+    }
+}
+
+
+void MainWindow::on_selEllipseBtn_toggled(bool checked) {
+    if (checked) {
+        ui->imageLabel->setSelectionMode(Selection::Elliptical);
+    }
+}
+
+
+void MainWindow::on_selLassoBtn_toggled(bool checked) {
+    if (checked) {
+        ui->imageLabel->setSelectionMode(Selection::Lasso);
+    }
 }
 
 void MainWindow::on_zoomInBtn_clicked() {
@@ -251,23 +218,25 @@ void MainWindow::on_zoomInBtn_clicked() {
     if ((long long) ui->imageLabel->width() * (long long) ui->imageLabel->height() > (long long) 267386880) {
         ui->statusbar->showMessage("You've zoomed in too far! Please be kinder to your memory... :(");
     } else {
-        scaleFactor *= 1.25;
-        scaleImagePixmap();
+        ui->imageLabel->setScaleFactor(ui->imageLabel->getScaleFactor() * 1.25);
+        ui->imageLabel->scaleImagePixmap();
         ui->statusbar->showMessage(QString("Enlarged to: %1x%2").arg(ui->imageLabel->width()).arg(ui->imageLabel->height()));
     }
 }
 
 void MainWindow::on_zoomFitBtn_clicked() {
-    scaleFactor = fmin(
-        float(ui->imageScrollArea->width()) / float(image.width()),
-        float(ui->imageScrollArea->height()) / float(image.height())) * 0.9;
-    scaleImagePixmap();
+    ui->imageLabel->setScaleFactor(
+        fmin(
+            float(ui->imageScrollArea->width()) / float(ui->imageLabel->loadedImage.width()),
+            float(ui->imageScrollArea->height()) / float(ui->imageLabel->loadedImage.height())
+        ) * 0.9);
+    ui->imageLabel->scaleImagePixmap();
     ui->statusbar->showMessage(QString("Image fit to display"));
 }
 
 void MainWindow::on_zoomRestoreBtn_clicked() {
-    scaleFactor = 1.0f;
-    scaleImagePixmap();
+    ui->imageLabel->setScaleFactor(1.0);
+    ui->imageLabel->scaleImagePixmap();
     ui->statusbar->showMessage(QString("Restored to: %1x%2").arg(ui->imageLabel->width()).arg(ui->imageLabel->height()));
 }
 
@@ -276,8 +245,8 @@ void MainWindow::on_zoomOutBtn_clicked() {
     if ((long long) ui->imageLabel->width() * (long long) ui->imageLabel->height() < 255) {
         ui->statusbar->showMessage("That's enough zooming out, the pic has been obliterated...");
     } else {
-        scaleFactor *= 0.8f;
-        scaleImagePixmap();
+        ui->imageLabel->setScaleFactor(ui->imageLabel->getScaleFactor() * 0.8);
+        ui->imageLabel->scaleImagePixmap();
         ui->statusbar->showMessage(QString("Shrunk to: %1x%2").arg(ui->imageLabel->width()).arg(ui->imageLabel->height()));
     }
 }

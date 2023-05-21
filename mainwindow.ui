@@ -89,7 +89,7 @@
          <number>8</number>
         </property>
         <item row="0" column="0">
-         <widget class="MyQLabel" name="imageLabel">
+         <widget class="MyImageQLabel" name="imageLabel">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
             <horstretch>0</horstretch>
@@ -153,7 +153,7 @@
    <addaction name="actionBlur"/>
    <addaction name="actionSharpen"/>
    <addaction name="actionCluster"/>
-   <addaction name="actionEqualize_Histogram"/>
+   <addaction name="actionEqualizeHistogram"/>
    <addaction name="actionInvert"/>
   </widget>
   <widget class="QDockWidget" name="dockWidget">
@@ -229,7 +229,7 @@
      <item row="3" column="1">
       <widget class="QToolButton" name="selEllipseBtn">
        <property name="enabled">
-        <bool>false</bool>
+        <bool>true</bool>
        </property>
        <property name="toolTip">
         <string>Elliptical selection</string>
@@ -261,7 +261,7 @@
      <item row="4" column="1">
       <widget class="QToolButton" name="selLassoBtn">
        <property name="enabled">
-        <bool>false</bool>
+        <bool>true</bool>
        </property>
        <property name="sizePolicy">
         <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
@@ -566,7 +566,7 @@
     <string>Detect Clusters in the selected portion of the image with 1-D K-means (if no selection is provided, applies to entire image)</string>
    </property>
   </action>
-  <action name="actionEqualize_Histogram">
+  <action name="actionEqualizeHistogram">
    <property name="enabled">
     <bool>true</bool>
    </property>
@@ -596,9 +596,9 @@
  </widget>
  <customwidgets>
   <customwidget>
-   <class>MyQLabel</class>
+   <class>MyImageQLabel</class>
    <extends>QLabel</extends>
-   <header>myqlabel.h</header>
+   <header>myimageqlabel.h</header>
   </customwidget>
  </customwidgets>
  <resources>

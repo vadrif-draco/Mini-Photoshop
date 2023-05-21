@@ -15,6 +15,7 @@
 #include <QLabel>
 #include <QMainWindow>
 #include <QMessageBox>
+#include <QObject>
 #include <QPixmap>
 #include <QProcess>
 #include <QRadioButton>
@@ -35,52 +36,38 @@ class MainWindow : public QMainWindow
 public:
     MainWindow(QWidget* parent = nullptr);
     ~MainWindow();
-    double scaleFactor = 1.0;
-    QImage image;
-    QLabel* pixelLabel;
-    QString currentImageFileLocation;
-    QColor getPixelAt(unsigned int x, unsigned int y);
-    enum Selection { None, Rectangular, Elliptical, Lasso };
-    Selection getCurrentSelectionMode();
 
 private slots:
     void on_actionOpen_triggered();
-
     void on_actionRestore_triggered();
-
     void on_actionSave_triggered();
-
     void on_actionExit_triggered();
-
     void on_actionBlur_triggered();
-
     void on_actionSharpen_triggered();
-
     void on_actionCluster_triggered();
-
-    void on_actionEqualize_Histogram_triggered();
-
+    void on_actionEqualizeHistogram_triggered();
     void on_actionInvert_triggered();
-
+    void on_selNoneBtn_toggled(bool checked);
+    void on_selRectBtn_toggled(bool checked);
+    void on_selEllipseBtn_toggled(bool checked);
+    void on_selLassoBtn_toggled(bool checked);
     void on_zoomInBtn_clicked();
-
     void on_zoomFitBtn_clicked();
-
     void on_zoomOutBtn_clicked();
-
     void on_zoomRestoreBtn_clicked();
 
 private:
     Ui::MainWindow* ui;
-    QString imageHeader;
     QRadioButton* seqRB;
     QRadioButton* ompRB;
     QRadioButton* mpiRB;
+    QLabel* pixelInfoLabel;
+    QString loadedImageHeader;
+    QString currentImageFileLocation;
     bool loadFile(const QString& fileName, bool retainScaleFactor);
     bool saveFile(const QString& fileName);
     void runScript(const QString& scriptNamePrefix);
-    void scaleImagePixmap();
-    QByteArray getImageBytesAndRemoveHeader(QImage*);
+    QByteArray getImageBytesAndRemoveHeader(QImage);
 };
 
 #endif // MAINWINDOW_H
